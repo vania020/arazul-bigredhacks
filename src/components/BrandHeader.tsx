@@ -8,7 +8,14 @@ export function ArazulLogo({ className = "h-9 w-9" }: { className?: string }) {
       <path d="M10 30c6-14 17-20 30-20-6 4-10 9-12 15-5-2-11 0-18 5z" className="fill-primary" />
       <path d="M18 27c5-6 11-9 18-10-4 3-6 6-7 10-3-1-7-1-11 0z" className="fill-sky" />
       {/* route */}
-      <path d="M12 38c6-2 12-5 16-11" fill="none" strokeWidth="2.4" strokeLinecap="round" strokeDasharray="0.1 4.4" className="stroke-sky-soft" />
+      <path
+        d="M12 38c6-2 12-5 16-11"
+        fill="none"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeDasharray="0.1 4.4"
+        className="stroke-sky-soft"
+      />
       {/* pin */}
       <circle cx="31" cy="25" r="3.2" className="fill-sky-soft" />
     </svg>
@@ -24,7 +31,11 @@ export function BrandHeader() {
         <p className="font-display text-xl font-extrabold tracking-[0.12em] text-deep">ARAZUL</p>
         <p className="text-xs leading-snug text-text-secondary sm:text-sm">{t("tagline")}</p>
       </div>
-      <div role="group" aria-label="Language" className="flex rounded-full border bg-card p-0.5 text-xs font-semibold">
+      <div
+        role="group"
+        aria-label="Language"
+        className="flex rounded-full border bg-card p-0.5 text-xs font-semibold"
+      >
         {(["en", "pt", "es"] as Lang[]).map((l) => (
           <button
             key={l}

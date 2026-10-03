@@ -10,7 +10,9 @@ export function ExposureLegend() {
       <span className="font-semibold text-foreground">{t("layerToggle")}</span>
       <span>{t("lower")}</span>
       <span className="flex h-1.5 w-16 overflow-hidden rounded-full opacity-80">
-        {swatches.map((s) => <span key={s} className={`flex-1 ${s}`} />)}
+        {swatches.map((s) => (
+          <span key={s} className={`flex-1 ${s}`} />
+        ))}
       </span>
       <span>{t("higher")}</span>
       <ExposureInfo />

@@ -7,7 +7,11 @@ export type Lang = "en" | "pt" | "es";
 const dicts: Record<Lang, Dict> = { en, pt, es };
 export type TKey = keyof Dict;
 
-interface Ctx { lang: Lang; setLang: (l: Lang) => void; t: (k: TKey, vars?: Record<string, string | number>) => string }
+interface Ctx {
+  lang: Lang;
+  setLang: (l: Lang) => void;
+  t: (k: TKey, vars?: Record<string, string | number>) => string;
+}
 const I18nCtx = createContext<Ctx | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {

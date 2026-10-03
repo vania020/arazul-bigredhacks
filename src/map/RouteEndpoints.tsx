@@ -3,7 +3,23 @@ import { useEffect } from "react";
 import type { LatLng } from "@/types/route";
 
 /** Float-pane markers sit above route strokes and the exposure canvas. */
-export function RouteEndpoints({ map, start, end, startLabel, endLabel, startAddress, endAddress }: { map: google.maps.Map; start: LatLng; end: LatLng; startLabel: string; endLabel: string; startAddress: string; endAddress: string }) {
+export function RouteEndpoints({
+  map,
+  start,
+  end,
+  startLabel,
+  endLabel,
+  startAddress,
+  endAddress,
+}: {
+  map: google.maps.Map;
+  start: LatLng;
+  end: LatLng;
+  startLabel: string;
+  endLabel: string;
+  startAddress: string;
+  endAddress: string;
+}) {
   useEffect(() => {
     const markers = [
       { point: start, letter: "A", label: startLabel, type: "start", address: startAddress },
@@ -31,15 +47,22 @@ export function RouteEndpoints({ map, start, end, startLabel, endLabel, startAdd
             caption.classList.toggle("route-endpoint-caption-open", !open);
           };
           this.element.addEventListener("click", toggle);
-          this.element.addEventListener("keydown", (e) => { if (e.key === "Enter") toggle(e); });
+          this.element.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") toggle(e);
+          });
           google.maps.OverlayView.preventMapHitsAndGesturesFrom(this.element);
           this.getPanes()?.floatPane.appendChild(this.element);
         }
         override draw() {
           const p = this.getProjection()?.fromLatLngToDivPixel(new google.maps.LatLng(point));
-          if (p) { this.element.style.left = `${p.x}px`; this.element.style.top = `${p.y}px`; }
+          if (p) {
+            this.element.style.left = `${p.x}px`;
+            this.element.style.top = `${p.y}px`;
+          }
         }
-        override onRemove() { this.element.remove(); }
+        override onRemove() {
+          this.element.remove();
+        }
       }
       const marker = new Endpoint();
       marker.setMap(map);
