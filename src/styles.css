@@ -1,0 +1,155 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Manrope", "Inter", ui-sans-serif, sans-serif;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-deep: var(--deep);
+  --color-navy: var(--navy);
+  --color-sky: var(--sky);
+  --color-sky-soft: var(--sky-soft);
+  --color-text-secondary: var(--text-secondary);
+  --color-route-recommended: var(--route-recommended);
+  --color-route-fastest: var(--route-fastest);
+  --color-exp-1: var(--exp-1);
+  --color-exp-2: var(--exp-2);
+  --color-exp-3: var(--exp-3);
+  --color-exp-4: var(--exp-4);
+  --color-exp-5: var(--exp-5);
+  --color-exp-6: var(--exp-6);
+}
+
+:root {
+  --radius: 1rem;
+  --background: #f7fafc;
+  --foreground: #172b4d;
+  --card: #ffffff;
+  --card-foreground: #172b4d;
+  --popover: #ffffff;
+  --popover-foreground: #172b4d;
+  --primary: #2f80ed;
+  --primary-foreground: #ffffff;
+  --secondary: #eaf5ff;
+  --secondary-foreground: #0d3b66;
+  --muted: #eef3f8;
+  --muted-foreground: #7c8e9e;
+  --accent: #eaf5ff;
+  --accent-foreground: #0d3b66;
+  --destructive: #d94b64;
+  --destructive-foreground: #ffffff;
+  --border: #d9e5f0;
+  --input: #d9e5f0;
+  --ring: #2f80ed;
+  --deep: #0d3b66;
+  --navy: #102a43;
+  --sky: #7cc8ff;
+  --sky-soft: #eaf5ff;
+  --text-secondary: #52677a;
+  --route-recommended: #2f80ed;
+  --route-fastest: #8a98a8;
+  --route-other: #b9c6d3;
+  --route-halo: #ffffff;
+  --exp-1: #ddf3ff;
+  --exp-2: #8ed1fc;
+  --exp-3: #ffd166;
+  --exp-4: #f78c6b;
+  --exp-5: #d94b64;
+  --exp-6: #8e3b5d;
+  --shadow-soft: 0 1px 2px rgb(16 42 67 / 0.06), 0 8px 24px -8px rgb(16 42 67 / 0.12);
+  --shadow-float: 0 12px 40px -12px rgb(13 59 102 / 0.28);
+}
+
+@layer base {
+  * { border-color: var(--color-border); }
+  html, body { height: 100%; }
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+}
+
+@utility shadow-soft { box-shadow: var(--shadow-soft); }
+@utility shadow-float { box-shadow: var(--shadow-float); }
+@utility glass {
+  background: color-mix(in oklab, var(--card) 86%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.route-endpoint {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transform: translate(-50%, -100%);
+  pointer-events: auto;
+  cursor: pointer;
+  z-index: 1000;
+  white-space: nowrap;
+}
+.route-endpoint-badge {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--card);
+  border-radius: 50%;
+  background: var(--deep);
+  color: var(--primary-foreground);
+  font: 800 14px var(--font-display);
+  box-shadow: var(--shadow-soft);
+}
+.route-endpoint-start .route-endpoint-badge { background: var(--primary); }
+.route-endpoint-caption-open { max-width: 240px; white-space: normal; text-align: center; font-weight: 600 !important; }
+.route-endpoint-caption {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 2px 6px;
+  font: 700 11px var(--font-sans);
+  box-shadow: var(--shadow-soft);
+}
+
+@keyframes ara-flap { 0%,100% { transform: rotate(0) } 30% { transform: rotate(-14deg) } 60% { transform: rotate(6deg) } }
+@keyframes ara-bounce { 0%,100% { transform: translateY(0) } 40% { transform: translateY(-5px) } }
+@keyframes bubble-in { from { opacity: 0; transform: translateY(6px) scale(.96) } to { opacity: 1; transform: none } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.ara-flap { transform-origin: 30% 30%; animation: ara-flap .9s ease-in-out 2; }
+.ara-bounce { animation: ara-bounce .9s ease-in-out 2; }
+.ara-working { animation: ara-bounce 1.2s ease-in-out infinite; }
+.bubble-in { animation: bubble-in .25s ease-out; }
+.fade-up { animation: fade-up .35s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .ara-flap, .ara-bounce, .ara-working, .bubble-in, .fade-up { animation: none !important; }
+}

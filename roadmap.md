@@ -1,0 +1,4 @@
+- [x] Refine map route hierarchy, endpoint labels, fitting, and legends.
+- [x] Soften exposure cells and clarify the historical-exposure explanation.
+- [x] Refine Ara guidance and search/results presentation across languages.
+- [x] Verify desktop and mobile flows and resolve any failures.
