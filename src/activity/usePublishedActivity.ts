@@ -111,7 +111,12 @@ export function usePublishedActivity(cityId: string, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled || !source) return;
-    void refresh();
+    // Root StrictMode replays setup/cleanup synchronously. Do not start a request
+    // in a discarded setup: its abort would otherwise consume the 30s cooldown.
+    let disposed = false;
+    queueMicrotask(() => {
+      if (!disposed) void refresh();
+    });
     const check = () => {
       if (!isAppVisible()) {
         if (controller.current || retryTimer.current !== null) {
@@ -131,6 +136,7 @@ export function usePublishedActivity(cityId: string, enabled: boolean) {
     document.addEventListener("visibilitychange", check);
     document.addEventListener(APP_VISIBILITY_EVENT, check);
     return () => {
+      disposed = true;
       window.clearInterval(timer);
       document.removeEventListener("visibilitychange", check);
       document.removeEventListener(APP_VISIBILITY_EVENT, check);

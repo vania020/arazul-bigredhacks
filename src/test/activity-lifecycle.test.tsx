@@ -63,3 +63,33 @@ describe("activity privacy and lifecycle", () => {
     unmount();
   });
 });
+
+describe("StrictMode activity startup", () => {
+  it("finishes its initial visible check without waiting for the manual cooldown", async () => {
+    const fetcher = vi.fn(
+      async (url: string) =>
+        new Response(
+          JSON.stringify(
+            new URL(url).searchParams.get("$select")?.startsWith("max(")
+              ? [{ latest: "2026-01-01T00:00:00" }]
+              : [],
+          ),
+        ),
+    );
+    vi.stubGlobal("fetch", fetcher);
+    const { result, rerender, unmount } = renderHook(
+      () => usePublishedActivity("san-francisco", true),
+      {
+        reactStrictMode: true,
+      },
+    );
+    await waitFor(() => expect(result.current.feed).not.toBeNull(), { timeout: 1000 });
+    expect(result.current.loading).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const calls = fetcher.mock.calls.length;
+    rerender();
+    expect(fetcher).toHaveBeenCalledTimes(calls);
+    expect(result.current.refreshDisabled).toBe(true);
+    unmount();
+  });
+});
