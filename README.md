@@ -97,3 +97,19 @@ incident severity
 × time-of-day relevance
 × recency
 × proximity to route
+
+```
+
+## Run locally with the hosted risk dataset
+
+```sh
+# Install the exact versions in the existing Bun lockfile; Bun need not be installed globally.
+npm exec --yes --package=bun -- bun install --frozen-lockfile
+npm run dev:local
+```
+
+Open `http://127.0.0.1:5180/`. This command enables the asset proxy already included in Lovable's Vite configuration, using the project ID in `src/assets/risk-grid.json.asset.json`. The 11 MB risk grid is still fetched at runtime. Without the proxy, ordinary `npm run dev` cannot resolve that Lovable-hosted asset locally and the app displays **Demo exposure layer** using synthetic data. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
+
+Google Maps reads `VITE_GOOGLE_MAPS_API_KEY` from the local Vite environment. Map display, address suggestions and route calculation require the corresponding Google Maps, Places and Routes services to be available to that key, including permission for the local origin. The demo-trip button fills the form; click **Find routes** to calculate it.
+
+Run `npm test` and `npm run build` to check routing and the production build. The existing unit test verifies route matching; map and risk-data availability also need a browser check. Local setup does not publish the app or change Lovable hosting.
