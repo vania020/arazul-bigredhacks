@@ -1,6 +1,9 @@
 import type { TravelMode } from "./risk";
 
-export interface LatLng { lat: number; lng: number }
+export interface LatLng {
+  lat: number;
+  lng: number;
+}
 
 export interface LocationValue {
   label: string;
@@ -26,6 +29,7 @@ export interface Hotspot {
 }
 
 export interface ScoredRoute extends CandidateRoute {
+  coverage: "covered" | "outside-coverage" | "unsupported-mode" | "unavailable";
   exposure: number; // unrounded sum(cellValue * spacing)
   index: number; // displayed round(exposure / 1000)
   hotspots: Hotspot[];
@@ -33,7 +37,13 @@ export interface ScoredRoute extends CandidateRoute {
   contributors: Record<string, number>; // meters per dominant category
 }
 
-export type RecommendationReason = "improved" | "not-meaningful" | "no-alternative";
+export type RecommendationReason =
+  | "improved"
+  | "not-meaningful"
+  | "no-alternative"
+  | "unavailable"
+  | "outside-coverage"
+  | "unsupported-mode";
 
 export interface Recommendation {
   fastest: ScoredRoute;

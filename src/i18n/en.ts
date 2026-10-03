@@ -13,7 +13,8 @@ export const en = {
   customTime: "Custom time",
   hour: "Hour",
   maxExtra: "Maximum extra travel time",
-  extraHelper: "ARAZUL only recommends a longer route when the reduction in reported-incident exposure is meaningful.",
+  extraHelper:
+    "ARAZUL only recommends a longer route when the reduction in reported-incident exposure is meaningful.",
   findRoutes: "Find routes",
   demoTrip: "Try a demo trip",
   swap: "Swap origin and destination",
@@ -32,17 +33,26 @@ export const en = {
   sameTime: "same time",
   startRoute: "Start route",
   whyRoute: "Why this route?",
-  notMeaningful: "The available alternatives don't meaningfully reduce reported exposure within your travel-time budget.",
-  noAlternative: "The available alternatives don't meaningfully reduce reported exposure within your travel-time budget.",
+  notMeaningful:
+    "The available alternatives don't meaningfully reduce reported exposure within your travel-time budget.",
+  noAlternative:
+    "The available alternatives don't meaningfully reduce reported exposure within your travel-time budget.",
   fastestIsBest: "The fastest route makes sense here.",
   updatedFor: "Updated for {bucket} conditions.",
-  bucket0: "late-night", bucket1: "morning", bucket2: "afternoon", bucket3: "nighttime",
-  bucketName0: "Late night", bucketName1: "Morning", bucketName2: "Afternoon", bucketName3: "Night",
+  bucket0: "late-night",
+  bucket1: "morning",
+  bucket2: "afternoon",
+  bucket3: "nighttime",
+  bucketName0: "Late night",
+  bucketName1: "Morning",
+  bucketName2: "Afternoon",
+  bucketName3: "Night",
   layerToggle: "Reported exposure",
   zoomHint: "Zoom in to see reported exposure",
   legendLow: "Lower reported exposure",
   legendHigh: "Higher reported exposure",
-  legendInfo: "Historical reported-incident exposure. This is not a prediction of crime or a guarantee of safety.",
+  legendInfo:
+    "Historical reported-incident exposure. This is not a prediction of crime or a guarantee of safety.",
   startLabel: "Start",
   endLabel: "Destination",
   demoBadge: "Demo exposure layer",
@@ -51,18 +61,22 @@ export const en = {
   routeError: "We couldn't get routes for this trip.",
   retry: "Retry",
   needBoth: "Enter both a starting point and a destination.",
-  whyIntro: "ARAZUL compares reported incidents along possible routes based on when and how you're traveling.",
+  whyIntro:
+    "ARAZUL compares reported incidents along possible routes based on when and how you're traveling.",
   difference: "Difference",
   extraCost: "Extra time",
   highSegments: "High-exposure segments",
   contributors: "Main reported categories",
   contributorsLabel: "Road length through areas where this category dominates reports",
   noContributors: "Not enough categorized reports along these routes.",
-  disclaimer: "ARAZUL uses historical reported incidents to compare relative route exposure. It does not predict individual crimes or guarantee safety. Results depend on reporting coverage and data quality.",
+  disclaimer:
+    "ARAZUL uses historical reported incidents to compare relative route exposure. It does not predict individual crimes or guarantee safety. Results depend on reporting coverage and data quality.",
   methodology: "Methodology",
-  methodologyIntro: "Weights below are already applied inside the preprocessed data. Each route's exposure = sum of cell values × road length, blended 70% departure time window and 30% daily average.",
+  methodologyIntro:
+    "Weights below are already applied inside the preprocessed data. Each route's exposure = sum of cell values × road length, blended 70% departure time window and 30% daily average.",
   methodologyNote: "Prototype design choices, not scientific claims.",
-  category: "Category", severity: "Severity",
+  category: "Category",
+  severity: "Severity",
   dataSource: "Source: {source} · {period} · {n} reports",
   close: "Close",
   araHome: "Where are we heading?",
@@ -77,7 +91,8 @@ export const en = {
   araFastest: "The fastest route makes sense here.",
   routes: "Routes",
   lowerAvailable: "A lower-exposure route is available.",
-  budgetSentence: "This route reduces exposure to historically reported incidents while staying within your +{budget} minute travel-time budget.",
+  budgetSentence:
+    "This route reduces exposure to historically reported incidents while staying within your +{budget} minute travel-time budget.",
   reducedBy: "↓ {pct}% reported exposure",
   fastestOption: "Fastest option",
   elevatedKm: "{km} through elevated-exposure segments",
@@ -85,8 +100,10 @@ export const en = {
   exposureOff: "Off",
   routeExposure: "Route exposure",
   cityExposure: "City exposure",
-  whySummary: "ARAZUL found a route that takes {min} extra min but has {pct}% lower reported-incident exposure.",
-  whySame: "The fastest route is recommended: alternatives within your +{budget} min budget didn't reduce reported-incident exposure by at least 15%.",
+  whySummary:
+    "ARAZUL found a route that takes {min} extra min but has {pct}% lower reported-incident exposure.",
+  whySame:
+    "The fastest route is recommended: alternatives within your +{budget} min budget didn't reduce reported-incident exposure by at least 15%.",
   travelTime: "Travel time",
   elevatedSegments: "Elevated-exposure segments",
   howCalculated: "How is exposure calculated?",
@@ -94,5 +111,25 @@ export const en = {
   lower: "Lower",
   higher: "Higher",
   min: "min",
+  city: "City",
+  coverageArea: "Incident coverage: {region}",
+  dataLoading: "Loading incident data…",
+  dataUnavailable:
+    "No verified incident dataset is connected here. Routes are compared by travel time only.",
+  dataLoadError: "Incident data could not load. Routes remain available without exposure scoring.",
+  outsideCoverage: "A route option leaves the covered area. Comparing travel times only.",
+  unsupportedMode:
+    "This dataset supports walking exposure only. Driving routes are compared by travel time.",
+  noExposure: "Exposure comparison unavailable",
+  monthlyData:
+    "Monthly reports have no time-of-day data. Departure time does not change incident exposure.",
+  cityTime: "Local time: {zone}",
+  sourceDetails: "Data & coverage",
+  withinCity: "Indices apply within one city and source. They are not comparable across cities.",
+  timeCaveat:
+    "Where hourly data is available, changing departure time updates historical exposure. Travel times remain from the last route search.",
+  googleHandoff:
+    "Google Maps recalculates directions and may choose a different route. Arazul does not provide turn-by-turn navigation.",
+  routingArea: "Routing area: {region}",
 };
 export type Dict = typeof en;

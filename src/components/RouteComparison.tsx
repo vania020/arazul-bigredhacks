@@ -1,13 +1,32 @@
 import { useI18n } from "@/i18n";
+import { hasExposureComparison } from "@/services/exposureService";
 import { useCountUp } from "./useCountUp";
 import type { Recommendation } from "@/types/route";
 
 export function RouteComparison({ rec, budget }: { rec: Recommendation; budget: number }) {
   const { t } = useI18n();
   const pct = useCountUp(Math.round(rec.improvement * 100));
+  if (!hasExposureComparison(rec))
+    return (
+      <section aria-label={t("routes")} className="rounded-lg bg-muted p-4">
+        <p className="font-semibold">{t("noExposure")}</p>
+        <p className="mt-1 text-sm">
+          {t(
+            rec.reason === "outside-coverage"
+              ? "outsideCoverage"
+              : rec.reason === "unsupported-mode"
+                ? "unsupportedMode"
+                : "dataUnavailable",
+          )}
+        </p>
+      </section>
+    );
   const improved = rec.reason === "improved";
   return (
-    <section aria-label={t("routes")} className="fade-up rounded-lg bg-deep p-4 text-primary-foreground shadow-soft">
+    <section
+      aria-label={t("routes")}
+      className="fade-up rounded-lg bg-deep p-4 text-primary-foreground shadow-soft"
+    >
       {improved ? (
         <>
           <p className="text-sm font-semibold text-sky">{t("lowerAvailable")}</p>

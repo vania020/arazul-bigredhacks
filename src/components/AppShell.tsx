@@ -5,8 +5,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { EXPOSURE_CONFIG as C } from "@/config/exposureConfig";
 import { getApiKey } from "@/services/googleMaps";
 import { loadRiskGrid } from "@/services/riskDataService";
-import { computeRoutes, currentHourIn, describeGoogleError, nextOccurrenceOfHour } from "@/services/routingService";
-import { recommend, scoreRoute } from "@/services/exposureService";
+import {
+  computeRoutes,
+  currentHourIn,
+  describeGoogleError,
+  nextOccurrenceOfHour,
+} from "@/services/routingService";
+import { recommend, scoreRoute, hasExposureComparison } from "@/services/exposureService";
 import { dedupeRoutes, generateDetours } from "@/services/detourService";
 import { MapView } from "@/map/MapView";
 import { RoutePolyline } from "@/map/RoutePolyline";
@@ -23,20 +28,35 @@ import { NavigationPage } from "@/pages/NavigationPage";
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { CandidateRoute, SearchRequest } from "@/types/route";
 
+import { CITIES } from "@/config/cities";
+import { useCity } from "@/context/CityContext";
+
 type MapState = "loading" | "ready" | "missing" | "error";
 const cache = new Map<string, CandidateRoute[]>();
 
 export function AppShell() {
   const { t } = useI18n();
+  const { city, setCity } = useCity();
+  const active = useRef(true);
+  const requestSequence = useRef(0);
+  const [dataState, setDataState] = useState<"loading" | "ready" | "unavailable" | "error">(
+    city.datasetUrl ? "loading" : "unavailable",
+  );
   const isMobile = useIsMobile();
-  const [form, setForm] = useState<SearchRequest>({ origin: { label: "" }, destination: { label: "" }, mode: "driving", departureHour: null });
+  const [form, setForm] = useState<SearchRequest>({
+    origin: { label: "" },
+    destination: { label: "" },
+    mode: city.defaultMode,
+    departureHour: null,
+  });
+  const [plannedRequest, setPlannedRequest] = useState<SearchRequest | null>(null);
   const [extra, setExtra] = useState<number>(C.extraTime.default);
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [mapState, setMapState] = useState<MapState>("loading");
   const [mapErr, setMapErr] = useState<string | null>(null);
   const [grid, setGrid] = useState<RiskGrid | null>(null);
   const [candidates, setCandidates] = useState<CandidateRoute[] | null>(null);
-  const [searchMode, setSearchMode] = useState<TravelMode>("driving");
+  const [searchMode, setSearchMode] = useState<TravelMode>(city.defaultMode);
   const [step, setStep] = useState<number | null>(null);
   const [error, setError] = useState<{ msg: string; dev?: string } | null>(null);
   const [selectedId, setSelectedId] = useState("");
@@ -52,20 +72,38 @@ export function AppShell() {
   const [nowHour, setNowHour] = useState(12);
 
   useEffect(() => {
-    setNowHour(currentHourIn(C.timeZone));
-    loadRiskGrid().then(setGrid);
+    active.current = true;
+    setNowHour(currentHourIn(city.timeZone));
+    const clock = setInterval(() => setNowHour(currentHourIn(city.timeZone)), 60000);
+    loadRiskGrid(city)
+      .then((g) => {
+        if (!active.current) return;
+        setGrid(g);
+        setDataState(g ? "ready" : "unavailable");
+      })
+      .catch(() => {
+        if (active.current) setDataState("error");
+      });
     if (!getApiKey()) setMapState("missing");
     setAra(t("araHome"));
-    const onAuth = () => { setMapState("error"); setMapErr("RefererNotAllowedMapError / InvalidKeyMapError (gm_authFailure)"); };
+    const onAuth = () => {
+      setMapState("error");
+      setMapErr("RefererNotAllowedMapError / InvalidKeyMapError (gm_authFailure)");
+    };
     window.addEventListener("arazul-maps-auth-failure", onAuth);
-    return () => window.removeEventListener("arazul-maps-auth-failure", onAuth);
+    return () => {
+      clearInterval(clock);
+      active.current = false;
+      requestSequence.current++;
+      window.removeEventListener("arazul-maps-auth-failure", onAuth);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const hour = form.departureHour ?? nowHour;
 
   const rec = useMemo(
-    () => (candidates && grid ? recommend(candidates, grid, searchMode, hour, extra) : null),
+    () => (candidates ? recommend(candidates, grid, searchMode, hour, extra) : null),
     [candidates, grid, searchMode, hour, extra],
   );
 
@@ -73,7 +111,10 @@ export function AppShell() {
   const prevRecId = useRef<string | null>(null);
   const reason = useRef<"search" | "time" | "mode" | null>(null);
   useEffect(() => {
-    if (!rec) { prevRecId.current = null; return; }
+    if (!rec) {
+      prevRecId.current = null;
+      return;
+    }
     setSelectedId(rec.recommended.id);
     const changed = prevRecId.current !== rec.recommended.id;
     const why = reason.current;
@@ -81,7 +122,13 @@ export function AppShell() {
     // Ara speaks only when a recommendation is generated (or genuinely changes).
     if (why === "search" || why === "mode" || (why === "time" && changed && prevRecId.current)) {
       if (why === "search" && rec.reason === "improved") setCelebrate((c) => c + 1);
-      setAra(rec.reason === "improved" ? t("araResult", { min: rec.extraMin, pct: Math.round(rec.improvement * 100) }) : t("araFastest"));
+      setAra(
+        !hasExposureComparison(rec)
+          ? t("noExposure")
+          : rec.reason === "improved"
+            ? t("araResult", { min: rec.extraMin, pct: Math.round(rec.improvement * 100) })
+            : t("araFastest"),
+      );
     }
     prevRecId.current = rec.recommended.id;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -92,49 +139,100 @@ export function AppShell() {
     if (!map || !rec) return;
     const b = new google.maps.LatLngBounds();
     rec.eligible.forEach((r) => r.path.forEach((p) => b.extend(p)));
-    const padding = isMobile ? { top: 95, left: 48, right: 48, bottom: Math.round(window.innerHeight * 0.58) } : { top: 100, left: 90, right: 90, bottom: 90 };
+    const padding = isMobile
+      ? { top: 95, left: 48, right: 48, bottom: Math.round(window.innerHeight * 0.58) }
+      : { top: 100, left: 90, right: 90, bottom: 90 };
     map.fitBounds(b, padding);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, candidates]);
 
-  const runSearch = useCallback(async (req: SearchRequest, why: "search" | "mode" = "search") => {
-    if (!req.origin.label.trim() || !req.destination.label.trim()) { setError({ msg: t("needBoth") }); return; }
-    if (mapState === "missing") { setError({ msg: t("mapsMissing") }); return; }
-    setError(null);
-    const departure = req.mode === "driving" && req.departureHour !== null ? nextOccurrenceOfHour(req.departureHour, C.timeZone) : null;
-    const key = JSON.stringify([req.origin.latLng ?? req.origin.label, req.destination.latLng ?? req.destination.label, req.mode, req.departureHour]);
-    const finish = (list: CandidateRoute[]) => {
-      reason.current = why;
-      setSearchMode(req.mode); setCandidates(list); setStep(null);
-      if (isMobile) setSnap("half");
-    };
-    if (cache.has(key)) { finish(cache.get(key)!); return; }
-    try {
-      setStep(0); setAra(null);
-      const base = await computeRoutes({ origin: req.origin, destination: req.destination, mode: req.mode, departure, alternatives: true });
-      if (!base.length) throw new Error("ZERO_RESULTS");
-      setStep(1);
-      const g = await loadRiskGrid();
-      const fastestC = base.reduce((a, b) => (b.durationSec < a.durationSec ? b : a));
-      const h = req.departureHour ?? currentHourIn(C.timeZone);
-      const fastest = scoreRoute(fastestC, g, req.mode, h);
-      setStep(2);
-      let detours: CandidateRoute[] = [];
+  const runSearch = useCallback(
+    async (req: SearchRequest, why: "search" | "mode" = "search") => {
+      if (!req.origin.label.trim() || !req.destination.label.trim()) {
+        setError({ msg: t("needBoth") });
+        return;
+      }
+      if (mapState === "missing") {
+        setError({ msg: t("mapsMissing") });
+        return;
+      }
+      const requestId = ++requestSequence.current;
+      const cancelled = () => !active.current || requestId !== requestSequence.current;
+      setError(null);
+      const departure =
+        req.mode === "driving" && req.departureHour !== null
+          ? nextOccurrenceOfHour(req.departureHour, city.timeZone)
+          : null;
+      const key = JSON.stringify([
+        city.id,
+        Math.floor(Date.now() / 300000),
+        req.origin.latLng ?? req.origin.label,
+        req.destination.latLng ?? req.destination.label,
+        req.mode,
+        req.departureHour,
+      ]);
+      const finish = (list: CandidateRoute[]) => {
+        if (cancelled()) return;
+        setStep(null);
+        reason.current = why;
+        setSearchMode(req.mode);
+        setPlannedRequest(req);
+        if (req.departureHour === null) setNowHour(currentHourIn(city.timeZone));
+        setCandidates(list);
+        if (isMobile) setSnap("half");
+      };
+      if (cache.has(key)) {
+        finish(cache.get(key)!);
+        return;
+      }
       try {
-        detours = await generateDetours(fastest, { origin: req.origin, destination: req.destination, mode: req.mode, departure }, fastestC.durationSec + C.extraTime.max * 60);
-      } catch { detours = []; }
-      const all = dedupeRoutes([...base, ...detours]);
-      cache.set(key, all);
-      setAra(null);
-      finish(all);
-    } catch (e) {
-      setStep(null);
-      setError({ msg: t("routeError"), dev: describeGoogleError(e) });
-      setAra(t("araNoAlt"));
-    }
-  }, [mapState, isMobile, t]);
+        setStep(0);
+        setAra(null);
+        const base = await computeRoutes({
+          origin: req.origin,
+          destination: req.destination,
+          mode: req.mode,
+          departure,
+          alternatives: true,
+        });
+        if (cancelled()) return;
+        if (!base.length) throw new Error("ZERO_RESULTS");
+        setStep(1);
+        const g = await loadRiskGrid(city).catch(() => null);
+        if (cancelled()) return;
+        setGrid(g);
+        setDataState(g ? "ready" : city.datasetUrl ? "error" : "unavailable");
+        const fastestC = base.reduce((a, b) => (b.durationSec < a.durationSec ? b : a));
+        const h = req.departureHour ?? currentHourIn(city.timeZone);
+        const fastest = scoreRoute(fastestC, g, req.mode, h);
+        setStep(2);
+        let detours: CandidateRoute[] = [];
+        try {
+          if (g && base.every((route) => scoreRoute(route, g, req.mode, h).coverage === "covered"))
+            detours = await generateDetours(
+              fastest,
+              { origin: req.origin, destination: req.destination, mode: req.mode, departure },
+              fastestC.durationSec + C.extraTime.max * 60,
+            );
+        } catch {
+          detours = [];
+        }
+        if (cancelled()) return;
+        const all = dedupeRoutes([...base, ...detours]);
+        cache.set(key, all);
+        setAra(null);
+        finish(all);
+      } catch (e) {
+        if (cancelled()) return;
+        setStep(null);
+        setError({ msg: t("routeError"), dev: describeGoogleError(e) });
+        setAra(t("araNoAlt"));
+      }
+    },
+    [mapState, isMobile, t, city],
+  );
 
-  const onDemo = () => setForm({ origin: { label: "Av. Paulista, 1578, São Paulo" }, destination: { label: "Praça da Sé, São Paulo" }, mode: "driving", departureHour: 22 });
+  const onDemo = () => setForm({ ...city.demo, mode: city.defaultMode, departureHour: 22 });
   // Extra-time slider: setExtra is defined in state; it re-scores locally via useMemo.
 
   const onHour = (h: number | null) => {
@@ -142,7 +240,13 @@ export function AppShell() {
     if (candidates) {
       reason.current = "time";
       const b = C.bucketForHour(h ?? nowHour);
-      setFeedback(t("updatedFor", { bucket: t(`bucket${b}` as "bucket0") }));
+      setFeedback(
+        !rec || !hasExposureComparison(rec)
+          ? t("noExposure")
+          : grid?.meta.timeResolution === "all-day"
+            ? t("monthlyData")
+            : t("updatedFor", { bucket: t(`bucket${b}` as "bucket0") }),
+      );
       setTimeout(() => setFeedback(null), 3500);
     }
   };
@@ -151,83 +255,246 @@ export function AppShell() {
     setForm(next);
     if (candidates) runSearch(next, "mode");
   };
-  const onStart = () => {
-    const r = rec?.eligible.find((x) => x.id === selectedId) ?? rec?.recommended;
-    if (!r) return;
-    const enc = (l: SearchRequest["origin"]) => encodeURIComponent(l.latLng ? `${l.latLng.lat},${l.latLng.lng}` : l.label);
-    const via = r.via?.length ? `&waypoints=${encodeURIComponent(r.via.map((v) => `${v.lat},${v.lng}`).join("|"))}` : "";
-    window.open(`https://www.google.com/maps/dir/?api=1&origin=${enc(form.origin)}&destination=${enc(form.destination)}&travelmode=${searchMode}${via}`, "_blank", "noopener");
+  const onStart = (routeId: string) => {
+    const r = rec?.eligible.find((x) => x.id === routeId);
+    if (!r || !plannedRequest) return;
+    const enc = (l: SearchRequest["origin"]) =>
+      encodeURIComponent(l.latLng ? `${l.latLng.lat},${l.latLng.lng}` : l.label);
+    const via = r.via?.length
+      ? `&waypoints=${encodeURIComponent(r.via.map((v) => `${v.lat},${v.lng}`).join("|"))}`
+      : "";
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&origin=${enc(plannedRequest.origin)}&destination=${enc(plannedRequest.destination)}&travelmode=${searchMode}${via}`,
+      "_blank",
+      "noopener",
+    );
   };
 
   const steps = [t("stepFinding"), t("stepComparing"), t("stepDetours")];
 
   const panel = (
     <>
+      <div className="mb-5 space-y-2">
+        <label htmlFor="city" className="block text-sm font-semibold">
+          {t("city")}
+        </label>
+        <select
+          id="city"
+          value={city.id}
+          onChange={(e) => setCity(e.target.value)}
+          className="h-12 w-full rounded-xl border bg-card px-3 text-sm font-semibold"
+        >
+          {CITIES.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        <div className="text-xs leading-relaxed text-text-secondary">
+          <p>{t(city.datasetUrl ? "coverageArea" : "routingArea", { region: city.region })}</p>
+          <p>{t("cityTime", { zone: city.timeZone })}</p>
+          <button
+            onClick={() => setMethOpen(true)}
+            className="min-h-8 font-semibold text-primary underline"
+          >
+            {t("sourceDetails")}
+          </button>
+        </div>
+        {dataState !== "ready" && (
+          <p role="status" className="rounded-lg bg-muted p-3 text-xs leading-relaxed">
+            {t(
+              dataState === "loading"
+                ? "dataLoading"
+                : dataState === "error"
+                  ? "dataLoadError"
+                  : "dataUnavailable",
+            )}
+          </p>
+        )}
+        {grid?.meta.timeResolution === "all-day" && (
+          <p className="rounded-lg bg-muted p-3 text-xs leading-relaxed">{t("monthlyData")}</p>
+        )}
+        {grid && !grid.meta.modes.includes(rec ? searchMode : form.mode) && (
+          <p role="status" className="rounded-lg bg-muted p-3 text-xs leading-relaxed">
+            {t("unsupportedMode")}
+          </p>
+        )}
+      </div>
       {step !== null ? (
         <div className="space-y-3 py-6" aria-live="polite">
           {steps.map((s, i) => (
-            <div key={s} className={`flex items-center gap-3 rounded-xl p-3 text-sm transition-opacity ${i <= step ? "bg-secondary text-deep" : "opacity-40"}`}>
-              <span className={`h-2.5 w-2.5 rounded-full ${i < step ? "bg-primary" : i === step ? "animate-pulse bg-sky" : "bg-border"}`} />
+            <div
+              key={s}
+              className={`flex items-center gap-3 rounded-xl p-3 text-sm transition-opacity ${i <= step ? "bg-secondary text-deep" : "opacity-40"}`}
+            >
+              <span
+                className={`h-2.5 w-2.5 rounded-full ${i < step ? "bg-primary" : i === step ? "animate-pulse bg-sky" : "bg-border"}`}
+              />
               {s}
             </div>
           ))}
         </div>
       ) : rec ? (
-        <NavigationPage rec={rec} form={form} selectedId={selectedId} onSelect={setSelectedId} onStart={onStart}
-          onWhy={() => setWhyOpen(true)} onBack={() => { setCandidates(null); setAra(t("araHome")); if (isMobile) setSnap("expanded"); }}
-          onMode={onMode} onHour={onHour} extra={extra} setExtra={setExtra} feedback={feedback} />
+        <NavigationPage
+          rec={rec}
+          form={{
+            ...(plannedRequest ?? form),
+            mode: searchMode,
+            departureHour: form.departureHour,
+          }}
+          selectedId={selectedId}
+          onSelect={setSelectedId}
+          onStart={onStart}
+          onWhy={() => setWhyOpen(true)}
+          onBack={() => {
+            setCandidates(null);
+            setAra(t("araHome"));
+            if (isMobile) setSnap("expanded");
+          }}
+          onMode={onMode}
+          onHour={onHour}
+          extra={extra}
+          setExtra={setExtra}
+          feedback={feedback}
+        />
       ) : (
-        <SearchPage form={form} setForm={setForm} extra={extra} setExtra={setExtra} mapsReady={mapState === "ready"}
-          onSubmit={() => runSearch(form)} onDemo={onDemo} error={null} />
+        <SearchPage
+          form={form}
+          setForm={setForm}
+          extra={extra}
+          setExtra={setExtra}
+          mapsReady={mapState === "ready"}
+          onSubmit={() => runSearch(form)}
+          onDemo={onDemo}
+          error={null}
+        />
       )}
       {error && step === null && (
         <div role="alert" className="mt-4 rounded-2xl border bg-card p-4">
           <p className="text-sm font-semibold text-deep">{error.msg}</p>
-          {error.dev && <p className="mt-1 break-words font-mono text-xs text-muted-foreground">{error.dev}</p>}
-          {error.dev && <button onClick={() => runSearch(form)} className="mt-3 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground">{t("retry")}</button>}
+          {error.dev && (
+            <p className="mt-1 break-words font-mono text-xs text-muted-foreground">{error.dev}</p>
+          )}
+          {error.dev && (
+            <button
+              onClick={() => runSearch(form)}
+              className="mt-3 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+            >
+              {t("retry")}
+            </button>
+          )}
         </div>
       )}
-      {grid?.isDemo && <p className="mt-4 inline-block rounded-full bg-exp-3/40 px-3 py-1 text-xs font-semibold text-navy">{t("demoBadge")}</p>}
     </>
   );
 
   const selected = rec?.eligible.find((r) => r.id === selectedId) ?? rec?.recommended;
   const routeStart = selected?.path[0];
   const routeEnd = selected?.path.at(-1);
-  const layers = [["off", t("exposureOff")], ["route", t("routeExposure")], ["city", t("cityExposure")]] as const;
+  const layers = [
+    ["off", t("exposureOff")],
+    ["route", t("routeExposure")],
+    ["city", t("cityExposure")],
+  ] as const;
+
+  const canShowLayer = !!grid && grid.meta.modes.includes(rec ? searchMode : form.mode);
 
   const mapArea = (
     <div className="relative h-full w-full overflow-hidden bg-sky-soft">
       {mapState !== "missing" && (
-        <MapView onReady={(m) => { setMap(m); setMapState("ready"); }} onError={(e) => { if (e === "MISSING_KEY") { setMapState("missing"); return; } setMapState("error"); setMapErr(e); }} />
+        <MapView
+          onReady={(m) => {
+            setMap(m);
+            setMapState("ready");
+          }}
+          onError={(e) => {
+            if (e === "MISSING_KEY") {
+              setMapState("missing");
+              return;
+            }
+            setMapState("error");
+            setMapErr(e);
+          }}
+        />
       )}
       {(mapState === "missing" || mapState === "error") && (
         <div className="absolute inset-0 grid place-items-center p-6">
           <div className="max-w-sm rounded-3xl border bg-card p-6 text-center shadow-soft">
-            <p className="font-display text-lg font-extrabold text-deep">{mapState === "missing" ? t("mapsMissing") : t("mapsError")}</p>
+            <p className="font-display text-lg font-extrabold text-deep">
+              {mapState === "missing" ? t("mapsMissing") : t("mapsError")}
+            </p>
             <p className="mt-2 font-mono text-xs text-muted-foreground">
-              {mapState === "missing" ? "Add VITE_GOOGLE_MAPS_API_KEY to enable live maps and routing." : mapErr}
+              {mapState === "missing"
+                ? "Add VITE_GOOGLE_MAPS_API_KEY to enable live maps and routing."
+                : mapErr}
             </p>
           </div>
         </div>
       )}
-      {map && grid && layer !== "off" && <ExposureLayer map={map} grid={grid} mode={rec ? searchMode : form.mode} hour={hour} route={selected?.path} scope={rec ? layer : "city"} onZoomOk={setZoomOk} />}
-      {map && rec && rec.eligible.map((r) => (
-        <RoutePolyline key={r.id} map={map} path={r.path} selected={selected?.id === r.id} onClick={() => setSelectedId(r.id)} />
-      ))}
-      {map && routeStart && routeEnd && <RouteEndpoints map={map} start={routeStart} end={routeEnd} startLabel={t("startLabel")} endLabel={t("endLabel")} startAddress={form.origin.label} endAddress={form.destination.label} />}
+      {map && grid && canShowLayer && layer !== "off" && (
+        <ExposureLayer
+          map={map}
+          grid={grid}
+          mode={rec ? searchMode : form.mode}
+          hour={hour}
+          route={selected?.path}
+          scope={rec ? layer : "city"}
+          onZoomOk={setZoomOk}
+        />
+      )}
+      {map &&
+        rec &&
+        rec.eligible.map((r) => (
+          <RoutePolyline
+            key={r.id}
+            map={map}
+            path={r.path}
+            selected={selected?.id === r.id}
+            onClick={() => setSelectedId(r.id)}
+          />
+        ))}
+      {map && routeStart && routeEnd && (
+        <RouteEndpoints
+          map={map}
+          start={routeStart}
+          end={routeEnd}
+          startLabel={t("startLabel")}
+          endLabel={t("endLabel")}
+          startAddress={form.origin.label}
+          endAddress={form.destination.label}
+        />
+      )}
       {mapState === "ready" && (
-        <div className={`absolute left-3 right-16 top-3 z-10 flex flex-col items-start gap-2 ${isMobile ? "" : "max-w-sm"}`}>
-          <div role="radiogroup" aria-label={t("layerToggle")} className="glass flex rounded-full border p-1 shadow-soft">
-            {layers.filter(([k]) => rec || k !== "route").map(([k, label]) => (
-              <button key={k} type="button" role="radio" aria-checked={layer === k} onClick={() => setLayer(k)}
-                className={`h-9 rounded-full px-3 text-xs font-semibold transition-colors ${layer === k ? "bg-primary text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}>
-                {k === "off" ? label : rec ? label : t("layerToggle")}
-              </button>
-            ))}
+        <div
+          className={`absolute left-3 right-16 top-3 z-10 flex flex-col items-start gap-2 ${isMobile ? "" : "max-w-sm"}`}
+        >
+          <div
+            role="radiogroup"
+            aria-label={t("layerToggle")}
+            className="glass flex rounded-full border p-1 shadow-soft"
+          >
+            {layers
+              .filter(([k]) => rec || k !== "route")
+              .map(([k, label]) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={(canShowLayer ? layer : "off") === k}
+                  disabled={k !== "off" && !canShowLayer}
+                  onClick={() => setLayer(k)}
+                  className={`h-9 rounded-full px-3 disabled:opacity-40 text-xs font-semibold transition-colors ${layer === k ? "bg-primary text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
+                >
+                  {k === "off" ? label : rec ? label : t("layerToggle")}
+                </button>
+              ))}
           </div>
-          {layer !== "off" && !zoomOk && <p className="glass rounded-full border px-3 py-1.5 text-xs text-text-secondary">{t("zoomHint")}</p>}
-          {layer !== "off" && zoomOk && <ExposureLegend />}
+          {canShowLayer && layer !== "off" && !zoomOk && (
+            <p className="glass rounded-full border px-3 py-1.5 text-xs text-text-secondary">
+              {t("zoomHint")}
+            </p>
+          )}
+          {canShowLayer && layer !== "off" && zoomOk && <ExposureLegend />}
         </div>
       )}
     </div>
@@ -239,22 +506,48 @@ export function AppShell() {
         <>
           {mapArea}
           <BottomSheet snap={snap} onSnap={setSnap} onHeight={setSheetH}>
-            <div className="mb-4"><BrandHeader /></div>
+            <div className="mb-4">
+              <BrandHeader />
+            </div>
             {panel}
           </BottomSheet>
-          <AraBird message={ara} celebrate={celebrate} working={step !== null} className="absolute right-3 z-10 max-w-[min(90vw,300px)]" style={{ bottom: sheetH + 8 }} />
+          <AraBird
+            message={ara}
+            celebrate={celebrate}
+            working={step !== null}
+            className="absolute right-3 z-10 max-w-[min(90vw,300px)]"
+            style={{ bottom: sheetH + 8 }}
+          />
         </>
       ) : (
         <>
           <aside className="relative z-10 flex h-full w-[34%] min-w-[380px] max-w-[480px] flex-col border-r bg-card shadow-soft">
-            <div className="p-6 pb-4"><BrandHeader /></div>
+            <div className="p-6 pb-4">
+              <BrandHeader />
+            </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-28">{panel}</div>
-            <AraBird message={ara} celebrate={celebrate} working={step !== null} className="absolute bottom-4 right-4" />
+            <AraBird
+              message={ara}
+              celebrate={celebrate}
+              working={step !== null}
+              className="absolute bottom-4 right-4"
+            />
           </aside>
           <div className="relative flex-1">{mapArea}</div>
         </>
       )}
-      {rec && <RouteExplanationSheet open={whyOpen} onClose={() => setWhyOpen(false)} rec={rec} budget={extra} onMethodology={() => { setWhyOpen(false); setMethOpen(true); }} />}
+      {rec && (
+        <RouteExplanationSheet
+          open={whyOpen}
+          onClose={() => setWhyOpen(false)}
+          rec={rec}
+          budget={extra}
+          onMethodology={() => {
+            setWhyOpen(false);
+            setMethOpen(true);
+          }}
+        />
+      )}
       <MethodologyModal open={methOpen} onClose={() => setMethOpen(false)} grid={grid} />
     </main>
   );

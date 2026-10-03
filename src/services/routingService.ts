@@ -45,15 +45,23 @@ export async function computeRoutes(q: RouteQuery): Promise<CandidateRoute[]> {
     }));
 }
 
-/** Next future occurrence of an hour in São Paulo (Google needs a future time). */
-export function nextOccurrenceOfHour(hour: number, timeZone: string): Date {
-  const now = new Date();
-  const parts = new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "numeric", hourCycle: "h23" }).formatToParts(now);
-  const h = Number(parts.find((p) => p.type === "hour")?.value ?? 0);
-  const m = Number(parts.find((p) => p.type === "minute")?.value ?? 0);
-  let t = now.getTime() + ((hour - h + 24) % 24) * 3600000 - m * 60000;
-  if (t <= now.getTime() + 60000) t += 24 * 3600000;
-  return new Date(t);
+/** Earliest local hour boundary more than one minute ahead, including DST repeats/skips. */
+export function nextOccurrenceOfHour(hour: number, timeZone: string, now = new Date()): Date {
+  if (!Number.isInteger(hour) || hour < 0 || hour > 23) throw new RangeError("Departure hour must be an integer from 0 to 23");
+  const nowMs = now.getTime();
+  if (!Number.isFinite(nowMs)) throw new RangeError("Invalid current date");
+  const formatter = new Intl.DateTimeFormat("en-US", { timeZone, hour: "numeric", minute: "numeric", hourCycle: "h23" });
+  // Search UTC minute boundaries: this also supports half/quarter-hour UTC offsets.
+  // Formatting each candidate lets Intl handle gaps and repeated local hours.
+  const first = (Math.floor((nowMs + 60000) / 60000) + 1) * 60000;
+  const limit = nowMs + 48 * 3600000;
+  for (let t = first; t <= limit; t += 60000) {
+    const parts = formatter.formatToParts(t);
+    const localHour = Number(parts.find(p => p.type === "hour")?.value);
+    const localMinute = Number(parts.find(p => p.type === "minute")?.value);
+    if (localHour === hour && localMinute === 0) return new Date(t);
+  }
+  throw new RangeError("No matching departure hour within 48 hours");
 }
 
 export function currentHourIn(timeZone: string) {
