@@ -28,6 +28,12 @@ import { NavigationPage } from "@/pages/NavigationPage";
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { CandidateRoute, SearchRequest } from "@/types/route";
 
+import { TimeOfDayComparison } from "./TimeOfDayComparison";
+import { TripTools } from "./TripTools";
+import { planningCopy } from "@/i18n/planning";
+import { usePublishedActivity, PublishedActivity, ActivityLayer } from "@/activity";
+import { MapPointPicker } from "@/map/MapPointPicker";
+import type { LatLng } from "@/types/route";
 import { CITIES } from "@/config/cities";
 import { useCity } from "@/context/CityContext";
 
@@ -35,8 +41,18 @@ type MapState = "loading" | "ready" | "missing" | "error";
 const cache = new Map<string, CandidateRoute[]>();
 
 export function AppShell() {
-  const { t } = useI18n();
-  const { city, setCity } = useCity();
+  const { t, lang } = useI18n();
+  const copy = planningCopy[lang];
+  const {
+    city,
+    setCity,
+    incomingTrip,
+    clearIncomingTrip,
+    sharedTripError,
+    activityEnabled,
+    setActivityEnabled,
+  } = useCity();
+  const activity = usePublishedActivity(city.id, activityEnabled);
   const active = useRef(true);
   const requestSequence = useRef(0);
   const [dataState, setDataState] = useState<"loading" | "ready" | "unavailable" | "error">(
@@ -70,6 +86,51 @@ export function AppShell() {
   const [snap, setSnap] = useState<Snap>("expanded");
   const [sheetH, setSheetH] = useState(0);
   const [nowHour, setNowHour] = useState(12);
+  const [picking, setPicking] = useState<"origin" | "destination" | null>(null);
+  const [sharedLoaded, setSharedLoaded] = useState(false);
+  useEffect(() => {
+    if (!incomingTrip || incomingTrip.cityId !== city.id) return;
+    const endpoint = (v: SearchRequest["origin"]) => ({
+      ...v,
+      label: v.label || `${v.latLng?.lat}, ${v.latLng?.lng}`,
+    });
+    // Loading a link only fills the form; routing waits for the user's submit.
+    requestSequence.current++;
+    setStep(null);
+    setCandidates(null);
+    setPlannedRequest(null);
+    setError(null);
+    setForm({
+      origin: endpoint(incomingTrip.origin),
+      destination: endpoint(incomingTrip.destination),
+      mode: incomingTrip.mode,
+      departureHour: incomingTrip.hour,
+    });
+    setExtra(incomingTrip.extraMinutes);
+    setSharedLoaded(true);
+    setPicking(null);
+    setSnap("expanded");
+    clearIncomingTrip();
+  }, [incomingTrip, city.id, clearIncomingTrip]);
+  const cancelPick = useCallback(() => {
+    setPicking(null);
+    setSnap("expanded");
+  }, []);
+  const pickPoint = useCallback(
+    (point: LatLng) => {
+      if (!picking) return;
+      setForm((f) => ({
+        ...f,
+        [picking]: {
+          label: `${copy.point} (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`,
+          latLng: point,
+        },
+      }));
+      setPicking(null);
+      setSnap("expanded");
+    },
+    [picking, copy.point],
+  );
 
   useEffect(() => {
     active.current = true;
@@ -115,7 +176,11 @@ export function AppShell() {
       prevRecId.current = null;
       return;
     }
-    setSelectedId(rec.recommended.id);
+    const resetSelection = reason.current === "search" || reason.current === "mode";
+    // Keep the same selected geometry when exploring historical hours.
+    setSelectedId((current) =>
+      resetSelection || !rec.eligible.some((r) => r.id === current) ? rec.recommended.id : current,
+    );
     const changed = prevRecId.current !== rec.recommended.id;
     const why = reason.current;
     reason.current = null;
@@ -159,6 +224,8 @@ export function AppShell() {
       const requestId = ++requestSequence.current;
       const cancelled = () => !active.current || requestId !== requestSequence.current;
       setError(null);
+      setSharedLoaded(false);
+      setPicking(null);
       const departure =
         req.mode === "driving" && req.departureHour !== null
           ? nextOccurrenceOfHour(req.departureHour, city.timeZone)
@@ -272,6 +339,35 @@ export function AppShell() {
 
   const steps = [t("stepFinding"), t("stepComparing"), t("stepDetours")];
 
+  const selected = rec?.eligible.find((r) => r.id === selectedId) ?? rec?.recommended;
+  const timeComparison = (
+    <TimeOfDayComparison
+      route={selected ?? null}
+      grid={grid}
+      mode={rec ? searchMode : form.mode}
+      hour={hour}
+      timeZone={city.timeZone}
+      onHourChange={onHour}
+    />
+  );
+  const tripTools =
+    rec && selected && plannedRequest ? (
+      <TripTools
+        trip={{
+          version: 1,
+          cityId: city.id,
+          origin: plannedRequest.origin,
+          destination: plannedRequest.destination,
+          mode: searchMode,
+          hour: form.departureHour,
+          extraMinutes: extra,
+        }}
+        route={selected}
+        grid={grid}
+        comparisonAvailable={hasExposureComparison(rec)}
+      />
+    ) : null;
+
   const panel = (
     <>
       <div className="mb-5 space-y-2">
@@ -320,6 +416,16 @@ export function AppShell() {
           </p>
         )}
       </div>
+      {sharedTripError && (
+        <p role="alert" className="mb-4 rounded-lg border p-3 text-sm">
+          {copy.invalid}
+        </p>
+      )}
+      {sharedLoaded && (
+        <p role="status" className="mb-4 rounded-lg bg-secondary p-3 text-sm">
+          {copy.loaded}
+        </p>
+      )}
       {step !== null ? (
         <div className="space-y-3 py-6" aria-live="polite">
           {steps.map((s, i) => (
@@ -356,6 +462,8 @@ export function AppShell() {
           extra={extra}
           setExtra={setExtra}
           feedback={feedback}
+          timeComparison={timeComparison}
+          tripTools={tripTools}
         />
       ) : (
         <SearchPage
@@ -367,8 +475,22 @@ export function AppShell() {
           onSubmit={() => runSearch(form)}
           onDemo={onDemo}
           error={null}
+          timeComparison={timeComparison}
+          onPick={(kind) => {
+            setPicking(kind);
+            setSnap("collapsed");
+            setAra(null);
+          }}
         />
       )}
+      <div className="mt-5">
+        <PublishedActivity
+          state={activity}
+          enabled={activityEnabled}
+          onToggle={() => setActivityEnabled((v) => !v)}
+          language={lang}
+        />
+      </div>
       {error && step === null && (
         <div role="alert" className="mt-4 rounded-2xl border bg-card p-4">
           <p className="text-sm font-semibold text-deep">{error.msg}</p>
@@ -388,9 +510,8 @@ export function AppShell() {
     </>
   );
 
-  const selected = rec?.eligible.find((r) => r.id === selectedId) ?? rec?.recommended;
-  const routeStart = selected?.path[0];
-  const routeEnd = selected?.path.at(-1);
+  const routeStart = selected?.path[0] ?? form.origin.latLng;
+  const routeEnd = selected?.path.at(-1) ?? form.destination.latLng;
   const layers = [
     ["off", t("exposureOff")],
     ["route", t("routeExposure")],
@@ -431,6 +552,9 @@ export function AppShell() {
           </div>
         </div>
       )}
+      {map && activityEnabled && (
+        <ActivityLayer map={map} feed={activity.feed} cityId={city.id} language={lang} />
+      )}
       {map && grid && canShowLayer && layer !== "off" && (
         <ExposureLayer
           map={map}
@@ -464,7 +588,10 @@ export function AppShell() {
           endAddress={form.destination.label}
         />
       )}
-      {mapState === "ready" && (
+      {map && picking && (
+        <MapPointPicker map={map} kind={picking} onPick={pickPoint} onCancel={cancelPick} />
+      )}
+      {mapState === "ready" && !picking && (
         <div
           className={`absolute left-3 right-16 top-3 z-10 flex flex-col items-start gap-2 ${isMobile ? "" : "max-w-sm"}`}
         >
@@ -489,6 +616,18 @@ export function AppShell() {
                 </button>
               ))}
           </div>
+          {activity.source && (
+            <button
+              type="button"
+              role="switch"
+              aria-label={copy.activity}
+              aria-checked={activityEnabled}
+              onClick={() => setActivityEnabled((v) => !v)}
+              className="glass min-h-11 rounded-full border px-4 text-xs font-semibold shadow-soft"
+            >
+              {copy.activity} · {activityEnabled ? copy.on : copy.off}
+            </button>
+          )}
           {canShowLayer && layer !== "off" && !zoomOk && (
             <p className="glass rounded-full border px-3 py-1.5 text-xs text-text-secondary">
               {t("zoomHint")}

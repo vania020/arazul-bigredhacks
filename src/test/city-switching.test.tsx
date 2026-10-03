@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/AppShell";
 import { CityProvider, useCity } from "@/context/CityContext";
@@ -6,6 +6,15 @@ import { I18nProvider } from "@/i18n";
 import type { CandidateRoute } from "@/types/route";
 
 const mocks = vi.hoisted(() => ({ computeRoutes: vi.fn(), loadRiskGrid: vi.fn() }));
+vi.mock("@/activity", () => ({
+  usePublishedActivity: () => ({ feed: null, status: "disabled" }),
+  ActivityLayer: () => null,
+  PublishedActivity: ({ enabled, onToggle }: { enabled: boolean; onToggle: () => void }) => (
+    <button aria-pressed={enabled} onClick={onToggle}>
+      Published activity
+    </button>
+  ),
+}));
 vi.mock("@/services/googleMaps", () => ({ getApiKey: () => "test-key", importLib: vi.fn() }));
 vi.mock("@/services/riskDataService", () => ({ loadRiskGrid: mocks.loadRiskGrid }));
 vi.mock("@/services/routingService", () => ({
@@ -99,6 +108,7 @@ describe("city routing state", () => {
     expect(screen.getAllByText("Exposure comparison unavailable").length).toBeGreaterThan(0);
     expect(screen.queryByText(/\d+%.*reported.*exposure/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/\d.*elevated/i)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText(/Advanced options/));
     fireEvent.change(screen.getByRole("combobox", { name: "Hour" }), { target: { value: "8" } });
     expect(screen.queryByText(/Updated for .* conditions/)).not.toBeInTheDocument();
     expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
@@ -112,6 +122,7 @@ describe("city routing state", () => {
     selectCity("lima");
     demoSearch();
     await screen.findByText(/→ Larcomar/);
+    fireEvent.click(screen.getByText(/Advanced options/));
     fireEvent.click(screen.getByRole("radio", { name: "Car / Rideshare" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("ZERO_RESULTS"));
     expect(screen.getByRole("radio", { name: "Walking" })).toHaveAttribute("aria-checked", "true");
@@ -120,5 +131,87 @@ describe("city routing state", () => {
       "false",
     );
     expect(screen.getByText(/→ Larcomar/)).toBeInTheDocument();
+  });
+});
+
+describe("historical comparison integration", () => {
+  it("preserves the selected route when a different window changes the recommendation", async () => {
+    const fast = {
+      ...route("fast", 600),
+      path: [
+        { lat: 0.001, lng: 0.001 },
+        { lat: 0.002, lng: 0.001 },
+      ],
+    };
+    const alternate = {
+      ...route("alternate", 720),
+      path: [
+        { lat: 0.001, lng: 0.011 },
+        { lat: 0.002, lng: 0.011 },
+      ],
+    };
+    mocks.loadRiskGrid.mockResolvedValue({
+      isDemo: false,
+      meta: {
+        cellSizeM: 1000,
+        originLat: 0,
+        originLon: 0,
+        rows: 1,
+        cols: 2,
+        modes: ["walking", "driving"],
+        buckets: ["0", "6", "12", "18"],
+        source: "fixture",
+        period: "historical",
+        incidentsUsed: 100,
+        timeResolution: "six-hour",
+      },
+      cells: {
+        "0_0": { walking: [1, 1, 1, 100], driving: [1, 1, 1, 100] },
+        "0_1": { walking: [100, 100, 100, 1], driving: [100, 100, 100, 1] },
+      },
+    });
+    mocks.computeRoutes.mockResolvedValue([fast, alternate]);
+    mount();
+    await screen.findByRole("button", { name: /Late night/ });
+    demoSearch();
+    const routes = await screen.findByRole("radiogroup", { name: "Routes" });
+    await waitFor(() => {
+      const initialRoute = within(routes).getByRole("radio", { name: /12 min/ });
+      expect(initialRoute).toHaveTextContent(/Recommended/i);
+      expect(initialRoute).toHaveAttribute("aria-checked", "true");
+    });
+    const chart = screen.getByRole("region", { name: "Compare time of day" });
+    const before = within(chart)
+      .getAllByText(/^Index /)
+      .map((el) => el.textContent);
+    fireEvent.click(within(chart).getByRole("button", { name: /Late night/ }));
+    await waitFor(() =>
+      expect(within(routes).getByRole("radio", { name: /10 min/ })).toHaveTextContent(
+        /Recommended/i,
+      ),
+    );
+    expect(within(routes).getByRole("radio", { name: /12 min/ })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(
+      within(chart)
+        .getAllByText(/^Index /)
+        .map((el) => el.textContent),
+    ).toEqual(before);
+    expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
+  });
+  it("keeps published activity off when the city changes", () => {
+    mount();
+    fireEvent.click(screen.getByRole("button", { name: "Published activity" }));
+    expect(screen.getByRole("button", { name: "Published activity" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    selectCity("lima");
+    expect(screen.getByRole("button", { name: "Published activity" })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
   });
 });

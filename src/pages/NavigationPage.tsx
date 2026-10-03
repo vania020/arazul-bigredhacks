@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import { hasExposureComparison } from "@/services/exposureService";
 import { RouteComparison } from "@/components/RouteComparison";
@@ -22,6 +24,8 @@ interface Props {
   extra: number;
   setExtra: (n: number) => void;
   feedback: string | null;
+  timeComparison?: ReactNode;
+  tripTools?: ReactNode;
 }
 
 const mins = (r: ScoredRoute) => Math.max(1, Math.round(r.durationSec / 60));
@@ -41,11 +45,15 @@ export function NavigationPage({
   extra,
   setExtra,
   feedback,
+  timeComparison,
+  tripTools,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const copy = planningCopy[lang];
   const comparisonAvailable = hasExposureComparison(rec);
   const others = rec.eligible
     .filter((r) => r.id !== rec.recommended.id && r.id !== rec.fastest.id)
+    .sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId))
     .slice(0, 2);
   const same = rec.recommended.id === rec.fastest.id;
   const options: { route: ScoredRoute; kind: "recommended" | "fastest" | "alternative" }[] = [
@@ -130,12 +138,19 @@ export function NavigationPage({
           onWhy={kind === "recommended" ? onWhy : undefined}
         />
       ))}
-      <div className="space-y-4 border-t pt-5">
-        <TravelModeToggle value={form.mode} onChange={onMode} />
-        <DepartureTimePicker value={form.departureHour} onChange={onHour} />
-        <p className="text-xs leading-relaxed text-text-secondary">{t("timeCaveat")}</p>
-        <DetourBudgetSlider value={extra} onChange={setExtra} />
-      </div>
+      {timeComparison}
+      {tripTools}
+      <details className="rounded-xl border p-3">
+        <summary className="min-h-8 cursor-pointer text-sm font-semibold">
+          {copy.advanced} · {extra} {copy.extra}
+        </summary>
+        <div className="space-y-4 pt-3">
+          <TravelModeToggle value={form.mode} onChange={onMode} />
+          <DepartureTimePicker value={form.departureHour} onChange={onHour} />
+          <p className="text-xs leading-relaxed text-text-secondary">{t("timeCaveat")}</p>
+          <DetourBudgetSlider value={extra} onChange={setExtra} />
+        </div>
+      </details>
     </div>
   );
 }

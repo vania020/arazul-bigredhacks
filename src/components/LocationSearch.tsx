@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { importLib } from "@/services/googleMaps";
 import { useCity } from "@/context/CityContext";
+import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import type { LocationValue } from "@/types/route";
 import { Button } from "@/components/ui/button";
@@ -12,26 +13,71 @@ interface Props {
   onChange: (v: LocationValue) => void;
   mapsReady: boolean;
   allowCurrent?: boolean;
+  onPick?: (() => void) | undefined;
 }
 
 interface Suggestion {
   main: string;
   secondary: string;
   full: string;
-  pred: any;
+  pred: google.maps.places.PlacePrediction;
 }
 
-export function LocationSearch({ id, kind, value, onChange, mapsReady, allowCurrent }: Props) {
-  const { t } = useI18n();
+export function LocationSearch({
+  id,
+  kind,
+  value,
+  onChange,
+  mapsReady,
+  allowCurrent,
+  onPick,
+}: Props) {
+  const { t, lang } = useI18n();
   const { city } = useCity();
   const [items, setItems] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [note, setNote] = useState<string | null>(null);
   const [devErr, setDevErr] = useState<string | null>(null);
-  const token = useRef<any>(null);
+  const token = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const typed = useRef(false);
+  const generation = useRef(0);
+  const mounted = useRef(true);
+  const signature = JSON.stringify([value.label, value.latLng?.lat, value.latLng?.lng]);
+  const expectedValue = useRef(signature);
+  const invalidate = () => {
+    generation.current++;
+    clearTimeout(timer.current);
+    setItems([]);
+    setOpen(false);
+    setActive(-1);
+  };
+  const change = (next: LocationValue) => {
+    expectedValue.current = JSON.stringify([next.label, next.latLng?.lat, next.latLng?.lng]);
+    onChange(next);
+  };
+  useLayoutEffect(() => {
+    if (signature !== expectedValue.current) {
+      generation.current++;
+      typed.current = false;
+      clearTimeout(timer.current);
+      setItems([]);
+      setOpen(false);
+      setActive(-1);
+      expectedValue.current = signature;
+    }
+  }, [signature]);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      // Invalidate the current request generation; this ref is a counter, not a DOM node.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      generation.current++;
+      clearTimeout(timer.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!typed.current || !mapsReady) return;
@@ -41,9 +87,14 @@ export function LocationSearch({ id, kind, value, onChange, mapsReady, allowCurr
       setItems([]);
       return;
     }
+    let cancelled = false;
+    const current = generation.current;
+    const stale = () => cancelled || !mounted.current || current !== generation.current;
     timer.current = setTimeout(async () => {
       try {
-        const { AutocompleteSuggestion, AutocompleteSessionToken } = await importLib<any>("places");
+        const { AutocompleteSuggestion, AutocompleteSessionToken } =
+          await importLib<google.maps.PlacesLibrary>("places");
+        if (stale()) return;
         token.current ??= new AutocompleteSessionToken();
         const { suggestions } = await AutocompleteSuggestion.fetchAutocompleteSuggestions({
           input: q,
@@ -51,58 +102,74 @@ export function LocationSearch({ id, kind, value, onChange, mapsReady, allowCurr
           includedRegionCodes: [city.countryCode],
           locationBias: { center: city.center, radius: city.searchRadiusM },
         });
+        if (stale()) return;
         setItems(
           (suggestions ?? [])
-            .filter((s: any) => s.placePrediction)
+            .map((s) => s.placePrediction)
+            .filter(
+              (prediction): prediction is google.maps.places.PlacePrediction => prediction != null,
+            )
             .slice(0, 5)
-            .map((s: any) => ({
-              main: s.placePrediction.mainText?.toString() ?? s.placePrediction.text.toString(),
-              secondary: s.placePrediction.secondaryText?.toString() ?? "",
-              full: s.placePrediction.text.toString(),
-              pred: s.placePrediction,
+            .map((prediction) => ({
+              main: prediction.mainText?.toString() ?? prediction.text.toString(),
+              secondary: prediction.secondaryText?.toString() ?? "",
+              full: prediction.text.toString(),
+              pred: prediction,
             })),
         );
         setOpen(true);
         setActive(-1);
         setDevErr(null);
-      } catch (e: any) {
-        setDevErr(`Places: ${e?.message ?? e}`);
+      } catch (e: unknown) {
+        if (!stale()) setDevErr(`Places: ${e instanceof Error ? e.message : String(e)}`);
       }
     }, 250);
-    return () => clearTimeout(timer.current);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer.current);
+    };
   }, [value, mapsReady, city]);
 
   const pick = async (s: Suggestion) => {
-    setOpen(false);
-    setItems([]);
+    invalidate();
+    const current = generation.current;
     typed.current = false;
-    onChange({ label: s.full });
+    change({ label: s.full });
     try {
       const place = s.pred.toPlace();
       await place.fetchFields({ fields: ["location", "formattedAddress", "displayName"] });
+      if (!mounted.current || current !== generation.current) return;
       token.current = null;
       const loc = place.location;
-      onChange(
+      change(
         loc ? { label: s.full, latLng: { lat: loc.lat(), lng: loc.lng() } } : { label: s.full },
       );
-    } catch (e: any) {
-      setDevErr(`Places: ${e?.message ?? e}`);
+    } catch (e: unknown) {
+      if (mounted.current && current === generation.current)
+        setDevErr(`Places: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
   const useCurrent = () => {
+    invalidate();
+    typed.current = false;
+    const current = generation.current;
     setNote(null);
     if (!navigator.geolocation) {
       setNote(t("locationDenied"));
       return;
     }
     navigator.geolocation.getCurrentPosition(
-      (p) =>
-        onChange({
+      (p) => {
+        if (!mounted.current || current !== generation.current) return;
+        change({
           label: t("currentLocation"),
           latLng: { lat: p.coords.latitude, lng: p.coords.longitude },
-        }),
-      () => setNote(t("locationDenied")),
+        });
+      },
+      () => {
+        if (mounted.current && current === generation.current) setNote(t("locationDenied"));
+      },
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
@@ -129,8 +196,9 @@ export function LocationSearch({ id, kind, value, onChange, mapsReady, allowCurr
           value={value.label}
           autoComplete="off"
           onChange={(e) => {
+            invalidate();
             typed.current = true;
-            onChange({ label: e.target.value });
+            change({ label: e.target.value });
           }}
           onFocus={() => items.length && setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -177,6 +245,21 @@ export function LocationSearch({ id, kind, value, onChange, mapsReady, allowCurr
           </Button>
         )}
       </div>
+      {onPick && (
+        <button
+          type="button"
+          disabled={!mapsReady}
+          onClick={() => {
+            invalidate();
+            typed.current = false;
+            onPick();
+          }}
+          className="mt-1 min-h-9 text-xs font-semibold text-primary underline disabled:opacity-40"
+          aria-label={`${planningCopy[lang].pick}: ${t(kind)}`}
+        >
+          {planningCopy[lang].pick}
+        </button>
+      )}
       {open && items.length > 0 && (
         <ul
           id={listId}
