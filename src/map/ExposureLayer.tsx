@@ -7,7 +7,9 @@ import { cssColor } from "./cssColor";
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { LatLng } from "@/types/route";
 
-/** Single canvas OverlayView drawing only in-viewport 100 m cells above a minimum value. */
+export type ExposureLayerStatus = "ready" | "zoom-in" | "outside-coverage" | "empty";
+
+/** A viewport-sized canvas; visual intensity never changes route scoring. */
 export function ExposureLayer({
   map,
   grid,
@@ -15,7 +17,7 @@ export function ExposureLayer({
   hour,
   route,
   scope,
-  onZoomOk,
+  onStatus,
 }: {
   map: google.maps.Map;
   grid: RiskGrid;
@@ -23,7 +25,7 @@ export function ExposureLayer({
   hour: number;
   route: LatLng[] | undefined;
   scope: "route" | "city";
-  onZoomOk: (ok: boolean) => void;
+  onStatus: (status: ExposureLayerStatus) => void;
 }) {
   useEffect(() => {
     const colors = EXPOSURE_SCALE.map((s) => cssColor(s.cssVar));
@@ -31,6 +33,12 @@ export function ExposureLayer({
     const mLng = 111320 * Math.cos(((grid.meta.projectionLatitude ?? originLat) * Math.PI) / 180);
     const dLat = cellSizeM / 111320,
       dLng = cellSizeM / mLng;
+    const bounds = grid.meta.coverageBounds ?? [
+      originLon,
+      originLat,
+      originLon + grid.meta.cols * dLng,
+      originLat + grid.meta.rows * dLat,
+    ];
     const corridor = new Set<string>();
     if (route?.length)
       for (const { p } of samplePath(route, cellSizeM * 0.7)) {
@@ -43,6 +51,8 @@ export function ExposureLayer({
     class Overlay extends google.maps.OverlayView {
       canvas = document.createElement("canvas");
       override onAdd() {
+        this.canvas.dataset["testid"] = "exposure-heatmap";
+        this.canvas.setAttribute("aria-hidden", "true");
         this.canvas.style.position = "absolute";
         this.canvas.style.pointerEvents = "none";
         this.getPanes()?.overlayLayer.appendChild(this.canvas);
@@ -55,9 +65,13 @@ export function ExposureLayer({
         const b = map.getBounds();
         const zoom = map.getZoom() ?? 0;
         const ok = zoom >= C.layer.minZoom;
-        onZoomOk(ok);
+        if (!ok) {
+          this.canvas.width = 0;
+          onStatus("zoom-in");
+          return;
+        }
         const ctx = this.canvas.getContext("2d");
-        if (!proj || !b || !ok || !ctx) {
+        if (!proj || !b || !ctx) {
           this.canvas.width = 0;
           return;
         }
@@ -66,50 +80,65 @@ export function ExposureLayer({
         const tl = proj.fromLatLngToDivPixel(new google.maps.LatLng(ne.lat(), sw.lng()));
         const br = proj.fromLatLngToDivPixel(new google.maps.LatLng(sw.lat(), ne.lng()));
         if (!tl || !br) return;
-        const w = Math.ceil(br.x - tl.x),
-          h = Math.ceil(br.y - tl.y);
-        this.canvas.width = w;
-        this.canvas.height = h;
+        const w = Math.max(0, Math.ceil(br.x - tl.x)),
+          h = Math.max(0, Math.ceil(br.y - tl.y));
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = Math.ceil(w * dpr);
+        this.canvas.height = Math.ceil(h * dpr);
+        this.canvas.style.width = `${w}px`;
+        this.canvas.style.height = `${h}px`;
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         this.canvas.style.left = `${tl.x}px`;
         this.canvas.style.top = `${tl.y}px`;
-        const r0 = Math.floor((sw.lat() - originLat) / dLat),
-          r1 = Math.floor((ne.lat() - originLat) / dLat);
-        const c0 = Math.floor((sw.lng() - originLon) / dLng),
-          c1 = Math.floor((ne.lng() - originLon) / dLng);
+        if (
+          ne.lng() <= bounds[0]! ||
+          sw.lng() >= bounds[2]! ||
+          ne.lat() <= bounds[1]! ||
+          sw.lat() >= bounds[3]!
+        ) {
+          onStatus("outside-coverage");
+          return;
+        }
+        const r0 = Math.max(0, Math.floor((sw.lat() - originLat) / dLat)),
+          r1 = Math.min(grid.meta.rows - 1, Math.floor((ne.lat() - originLat) / dLat));
+        const c0 = Math.max(0, Math.floor((sw.lng() - originLon) / dLng)),
+          c1 = Math.min(grid.meta.cols - 1, Math.floor((ne.lng() - originLon) / dLng));
+        let painted = 0;
         for (let r = r0; r <= r1; r++) {
           for (let c = c0; c <= c1; c++) {
             const key = `${r}_${c}`;
-            const bounds = grid.meta.coverageBounds;
-            const centerLat = originLat + (r + 0.5) * dLat,
-              centerLng = originLon + (c + 0.5) * dLng;
-            if (
-              bounds &&
-              (centerLng < bounds[0] ||
-                centerLng >= bounds[2] ||
-                centerLat < bounds[1] ||
-                centerLat >= bounds[3])
-            )
-              continue;
             const cell = grid.cells[key];
             if (!cell) continue;
             const v = blendedValue(cell, mode, hour) * (grid.meta.displayScale ?? 1);
             if (v < C.layer.minValue) continue;
             const nearRoute = corridor.has(key);
-            const lowDetail = zoom < 14;
             if (scope === "route" && !nearRoute) continue;
-            if (scope === "city" && lowDetail && v < 10) continue;
-            const lat = originLat + r * dLat,
-              lng = originLon + c * dLng;
-            const p1 = proj.fromLatLngToDivPixel(new google.maps.LatLng(lat + dLat, lng));
-            const p2 = proj.fromLatLngToDivPixel(new google.maps.LatLng(lat, lng + dLng));
+            const south = Math.max(originLat + r * dLat, bounds[1]!),
+              west = Math.max(originLon + c * dLng, bounds[0]!),
+              north = Math.min(originLat + (r + 1) * dLat, bounds[3]!),
+              east = Math.min(originLon + (c + 1) * dLng, bounds[2]!);
+            if (south >= north || west >= east) continue;
+            const p1 = proj.fromLatLngToDivPixel(new google.maps.LatLng(north, west));
+            const p2 = proj.fromLatLngToDivPixel(new google.maps.LatLng(south, east));
             if (!p1 || !p2) continue;
-            // Low/moderate cells stay faint; only genuinely high values reach ~25-35%.
-            const tier = v < 5 ? 0.25 : v < 10 ? 0.5 : v < 25 ? 0.8 : 1.2;
-            ctx.globalAlpha = (scope === "route" ? 0.24 : lowDetail ? 0.08 : 0.13) * tier;
-            ctx.fillStyle = colors[scaleIndexFor(v)] ?? "";
-            ctx.fillRect(p1.x - tl.x, p1.y - tl.y, Math.ceil(p2.x - p1.x), Math.ceil(p2.y - p1.y));
+            const index = scaleIndexFor(v);
+            const maxOpacity = scope === "route" ? C.layer.routeOpacity : C.layer.opacity;
+            ctx.globalAlpha =
+              C.layer.minOpacity +
+              ((maxOpacity - C.layer.minOpacity) * index) / (EXPOSURE_SCALE.length - 1);
+            ctx.fillStyle = colors[index] ?? colors[0]!;
+            // Shared pixel boundaries avoid darker seams from overlapping adjacent cells.
+            const x = Math.round(p1.x - tl.x),
+              y = Math.round(p1.y - tl.y);
+            const width = Math.round(p2.x - tl.x) - x,
+              height = Math.round(p2.y - tl.y) - y;
+            if (width > 0 && height > 0) {
+              ctx.fillRect(x, y, width, height);
+              painted++;
+            }
           }
         }
+        onStatus(painted ? "ready" : "empty");
       }
     }
     const o = new Overlay();
@@ -119,6 +148,6 @@ export function ExposureLayer({
       idle.remove();
       o.setMap(null);
     };
-  }, [map, grid, mode, hour, route, scope, onZoomOk]);
+  }, [map, grid, mode, hour, route, scope, onStatus]);
   return null;
 }
