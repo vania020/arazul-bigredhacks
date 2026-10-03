@@ -1,6 +1,14 @@
 export type TravelMode = "walking" | "driving";
 
 export interface RiskGridMeta {
+  cityId?: string;
+  sourceUrl?: string;
+  methodology?: string;
+  limitations?: string[];
+  coverageBounds?: [number, number, number, number];
+  projectionLatitude?: number;
+  timeResolution?: "six-hour" | "all-day";
+  displayScale?: number;
   cellSizeM: number;
   originLat: number;
   originLon: number;

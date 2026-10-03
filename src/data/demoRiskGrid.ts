@@ -7,13 +7,24 @@ import type { RiskGrid, RiskCell } from "@/types/risk";
 
 export function buildDemoRiskGrid(): RiskGrid {
   const meta = {
-    cellSizeM: 100, originLat: -24.01, originLon: -46.85, rows: 735, cols: 519,
-    buckets: ["madrugada", "manha", "tarde", "noite"], modes: ["walking", "driving"] as const,
-    source: "DEMO (synthetic)", period: "n/a", incidentsUsed: 0,
+    cellSizeM: 100,
+    originLat: -24.01,
+    originLon: -46.85,
+    rows: 735,
+    cols: 519,
+    buckets: ["madrugada", "manha", "tarde", "noite"],
+    modes: ["walking", "driving"] as const,
+    source: "DEMO (synthetic)",
+    period: "n/a",
+    incidentsUsed: 0,
   };
   const cells: Record<string, RiskCell> = {};
   // Smooth synthetic bumps around central São Paulo.
-  const centers: [number, number, number][] = [[460, 240, 30], [470, 255, 22], [450, 230, 18]];
+  const centers: [number, number, number][] = [
+    [460, 240, 30],
+    [470, 255, 22],
+    [450, 230, 18],
+  ];
   for (let r = 420; r < 500; r++) {
     for (let c = 200; c < 290; c++) {
       let v = 0;

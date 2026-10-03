@@ -14,7 +14,8 @@ export const es: Dict = {
   customTime: "Otra hora",
   hour: "Hora",
   maxExtra: "Tiempo extra máximo",
-  extraHelper: "ARAZUL solo recomienda una ruta más larga cuando la reducción de exposición a incidentes reportados es significativa.",
+  extraHelper:
+    "ARAZUL solo recomienda una ruta más larga cuando la reducción de exposición a incidentes reportados es significativa.",
   findRoutes: "Buscar rutas",
   demoTrip: "Probar un viaje demo",
   swap: "Intercambiar origen y destino",
@@ -33,17 +34,26 @@ export const es: Dict = {
   sameTime: "mismo tiempo",
   startRoute: "Iniciar ruta",
   whyRoute: "¿Por qué esta ruta?",
-  notMeaningful: "Las alternativas disponibles no reducen de forma significativa la exposición reportada dentro de tu tiempo extra.",
-  noAlternative: "Las alternativas disponibles no reducen de forma significativa la exposición reportada dentro de tu tiempo extra.",
+  notMeaningful:
+    "Las alternativas disponibles no reducen de forma significativa la exposición reportada dentro de tu tiempo extra.",
+  noAlternative:
+    "Las alternativas disponibles no reducen de forma significativa la exposición reportada dentro de tu tiempo extra.",
   fastestIsBest: "La ruta más rápida tiene sentido aquí.",
   updatedFor: "Actualizado para condiciones de {bucket}.",
-  bucket0: "madrugada", bucket1: "mañana", bucket2: "tarde", bucket3: "noche",
-  bucketName0: "Madrugada", bucketName1: "Mañana", bucketName2: "Tarde", bucketName3: "Noche",
+  bucket0: "madrugada",
+  bucket1: "mañana",
+  bucket2: "tarde",
+  bucket3: "noche",
+  bucketName0: "Madrugada",
+  bucketName1: "Mañana",
+  bucketName2: "Tarde",
+  bucketName3: "Noche",
   layerToggle: "Exposición reportada",
   zoomHint: "Acerca el mapa para ver la exposición reportada",
   legendLow: "Menor exposición reportada",
   legendHigh: "Mayor exposición reportada",
-  legendInfo: "Exposición histórica a incidentes reportados. No es una predicción de delitos ni una garantía de seguridad.",
+  legendInfo:
+    "Exposición histórica a incidentes reportados. No es una predicción de delitos ni una garantía de seguridad.",
   startLabel: "Inicio",
   endLabel: "Destino",
   demoBadge: "Capa de exposición demo",
@@ -52,18 +62,22 @@ export const es: Dict = {
   routeError: "No pudimos obtener rutas para este viaje.",
   retry: "Reintentar",
   needBoth: "Ingresa origen y destino.",
-  whyIntro: "ARAZUL compara incidentes reportados a lo largo de las rutas posibles según cuándo y cómo viajas.",
+  whyIntro:
+    "ARAZUL compara incidentes reportados a lo largo de las rutas posibles según cuándo y cómo viajas.",
   difference: "Diferencia",
   extraCost: "Tiempo extra",
   highSegments: "Tramos de alta exposición",
   contributors: "Principales categorías reportadas",
   contributorsLabel: "Longitud de vía en zonas donde esta categoría domina los reportes",
   noContributors: "No hay suficientes reportes categorizados en estas rutas.",
-  disclaimer: "ARAZUL usa incidentes históricos reportados para comparar la exposición relativa de las rutas. No predice delitos individuales ni garantiza seguridad. Los resultados dependen de la cobertura y calidad de los reportes.",
+  disclaimer:
+    "ARAZUL usa incidentes históricos reportados para comparar la exposición relativa de las rutas. No predice delitos individuales ni garantiza seguridad. Los resultados dependen de la cobertura y calidad de los reportes.",
   methodology: "Metodología",
-  methodologyIntro: "Los pesos ya están aplicados en los datos preprocesados. Exposición de la ruta = suma de valores de celda × longitud, con 70% del horario de salida y 30% del promedio diario.",
+  methodologyIntro:
+    "Los pesos ya están aplicados en los datos preprocesados. Exposición de la ruta = suma de valores de celda × longitud, con 70% del horario de salida y 30% del promedio diario.",
   methodologyNote: "Decisiones de diseño del prototipo, no afirmaciones científicas.",
-  category: "Categoría", severity: "Severidad",
+  category: "Categoría",
+  severity: "Severidad",
   dataSource: "Fuente: {source} · {period} · {n} reportes",
   close: "Cerrar",
   araHome: "¿A dónde vamos?",
@@ -78,7 +92,8 @@ export const es: Dict = {
   araFastest: "La ruta más rápida tiene sentido aquí.",
   routes: "Rutas",
   lowerAvailable: "Hay una ruta con menor exposición.",
-  budgetSentence: "Esta ruta reduce la exposición a incidentes reportados históricamente, dentro de tu límite de +{budget} minutos.",
+  budgetSentence:
+    "Esta ruta reduce la exposición a incidentes reportados históricamente, dentro de tu límite de +{budget} minutos.",
   reducedBy: "↓ {pct}% exposición reportada",
   fastestOption: "Opción más rápida",
   elevatedKm: "{km} por tramos de exposición elevada",
@@ -86,8 +101,10 @@ export const es: Dict = {
   exposureOff: "Apagado",
   routeExposure: "Exposición en la ruta",
   cityExposure: "Exposición en la ciudad",
-  whySummary: "ARAZUL encontró una ruta que toma {min} min más, pero tiene {pct}% menos exposición a incidentes reportados.",
-  whySame: "Se recomienda la ruta más rápida: ninguna alternativa dentro de +{budget} min redujo la exposición al menos 15%.",
+  whySummary:
+    "ARAZUL encontró una ruta que toma {min} min más, pero tiene {pct}% menos exposición a incidentes reportados.",
+  whySame:
+    "Se recomienda la ruta más rápida: ninguna alternativa dentro de +{budget} min redujo la exposición al menos 15%.",
   travelTime: "Tiempo de viaje",
   elevatedSegments: "Tramos de exposición elevada",
   howCalculated: "¿Cómo se calcula la exposición?",
@@ -95,4 +112,27 @@ export const es: Dict = {
   lower: "Menor",
   higher: "Mayor",
   min: "min",
+  city: "Ciudad",
+  coverageArea: "Cobertura de registros: {region}",
+  dataLoading: "Cargando datos de incidentes…",
+  dataUnavailable:
+    "No hay datos de incidentes verificados conectados aquí. Las rutas se comparan solo por tiempo.",
+  dataLoadError:
+    "No se pudieron cargar los datos. Las rutas siguen disponibles sin puntuar exposición.",
+  outsideCoverage:
+    "Una opción de ruta sale del área cubierta. Se comparan solo los tiempos de viaje.",
+  unsupportedMode:
+    "Estos datos permiten comparar exposición a pie. Las rutas en coche se comparan por tiempo.",
+  noExposure: "Comparación de exposición no disponible",
+  monthlyData:
+    "Los registros mensuales no incluyen horas. La hora de salida no cambia la exposición.",
+  cityTime: "Hora local: {zone}",
+  sourceDetails: "Datos y cobertura",
+  withinCity:
+    "Los índices se aplican dentro de una ciudad y fuente. No son comparables entre ciudades.",
+  timeCaveat:
+    "Cuando hay datos por hora, cambiar la salida actualiza la exposición histórica. Los tiempos de viaje son los de la última búsqueda.",
+  googleHandoff:
+    "Google Maps recalcula las indicaciones y puede elegir otra ruta. Arazul no ofrece navegación paso a paso.",
+  routingArea: "Área de rutas: {region}",
 };

@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 
-interface Props { message: string | null; celebrate: number; working?: boolean; className?: string; style?: React.CSSProperties }
+interface Props {
+  message: string | null;
+  celebrate: number;
+  working?: boolean;
+  className?: string;
+  style?: React.CSSProperties;
+}
 
 /** Ara: a small geometric macaw-inspired guide. Speaks only on meaningful state changes. */
 export function AraBird({ message, celebrate, working, className = "", style }: Props) {
@@ -24,14 +30,26 @@ export function AraBird({ message, celebrate, working, className = "", style }: 
   return (
     <div className={`pointer-events-none flex items-end gap-2 ${className}`} style={style}>
       {visible && (
-        <div role="status" aria-live="polite" className="bubble-in mb-6 max-w-[min(65vw,200px)] rounded-lg border bg-card px-3 py-2 text-xs font-medium leading-snug text-foreground shadow-soft">
+        <div
+          role="status"
+          aria-live="polite"
+          className="bubble-in mb-6 max-w-[min(65vw,200px)] rounded-lg border bg-card px-3 py-2 text-xs font-medium leading-snug text-foreground shadow-soft"
+        >
           {visible}
         </div>
       )}
-      <svg viewBox="0 0 64 64" className={`h-10 w-10 shrink-0 drop-shadow ${anim ? "ara-bounce" : ""} ${working ? "ara-working" : ""}`} aria-label="Ara" role="img">
+      <svg
+        viewBox="0 0 64 64"
+        className={`h-10 w-10 shrink-0 drop-shadow ${anim ? "ara-bounce" : ""} ${working ? "ara-working" : ""}`}
+        aria-label="Ara"
+        role="img"
+      >
         <path d="M20 54l6-14 6 4-6 12z" className="fill-deep" />
         <path d="M30 56l2-13 6 2-3 12z" className="fill-primary" />
-        <path d="M18 40c0-14 8-26 20-26s14 10 12 18-10 14-20 14c-6 0-12-2-12-6z" className="fill-primary" />
+        <path
+          d="M18 40c0-14 8-26 20-26s14 10 12 18-10 14-20 14c-6 0-12-2-12-6z"
+          className="fill-primary"
+        />
         <g className={anim ? "ara-flap" : ""}>
           <path d="M22 36c4-10 12-14 20-12-4 4-6 10-6 16-6 0-10-2-14-4z" className="fill-deep" />
           <path d="M26 35c3-6 8-8 13-8-2 3-3 6-3 10-4 0-7-1-10-2z" className="fill-sky" />

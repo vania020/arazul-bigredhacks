@@ -97,3 +97,73 @@ incident severity
 × time-of-day relevance
 × recency
 × proximity to route
+
+```
+
+Source preprocessing differs by city; the formula above describes the conceptual model, not a claim that every dataset applies recency weighting or identical factors. See the per-city provenance documents below for the implemented source filters and aggregation.
+
+## Run locally with the hosted risk dataset
+
+```sh
+git clone https://github.com/vania020/arazul-bigredhacks.git
+cd arazul-bigredhacks
+cp .env.example .env.local
+# Set VITE_GOOGLE_MAPS_API_KEY in .env.local.
+# Install the exact versions in the existing Bun lockfile; Bun need not be installed globally.
+npm exec --yes --package=bun -- bun install --frozen-lockfile
+npm run dev:local
+```
+
+Open `http://127.0.0.1:5180/`. This command enables the asset proxy already included in Lovable's Vite configuration, using the project ID in `src/assets/risk-grid.json.asset.json`. The 11 MB risk grid is still fetched at runtime. Without the proxy, ordinary `npm run dev` cannot resolve São Paulo’s Lovable-hosted asset locally. Routing remains available, but exposure scoring is explicitly unavailable; synthetic fallback data is never substituted. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
+
+Google Maps reads `VITE_GOOGLE_MAPS_API_KEY` from the local Vite environment. `.env.local` stays ignored by Git; copy `.env.example` and supply your browser-restricted key. Map display, address suggestions and route calculation require the corresponding Google Maps, Places and Routes services to be available to that key, including permission for the local origin. The demo-trip button fills the form; click **Find routes** to calculate it.
+
+Run `npm test` and `npm run build` to check routing and the production build. Tests cover route matching, city switching, data validation, projections, coverage exclusions, unsupported travel modes, unavailable sources and timezone/DST handling. Map and risk-data availability also need a browser check. Local setup does not publish the app or change Lovable hosting.
+
+## What the codebase does
+
+This is an independent app that uses Google Maps APIs, not a Chrome extension or a modification to the Google Maps app. React 19 and TypeScript provide the interface; TanStack Start handles routing and the server-rendered shell; Vite builds it; Tailwind and Radix provide styling and controls. Nitro prepares the Cloudflare deployment output. `src/server.ts` handles server rendering/error responses; it is not a custom directions or crime-ingestion backend. The comparison itself runs in the browser. There is no trained ML model, verified real-time crime feed, account database or background ingestion service in this codebase. The optional latest-published activity overlay reads supported official sources separately from the historical route model.
+
+The request flow is: choose city/endpoints/mode → Google route candidates → sample each route approximately every 30 metres → look up historical grid values → multiply by route length and sum → compare with the fastest option inside the extra-time budget. Time-aware sources blend 70% selected six-hour bucket with 30% all-day average. A longer route is recommended only if its modeled exposure is at least 15% lower. These are tunable prototype rules, not calibrated probabilities or a proven safety model.
+
+To look beyond Google's initial alternatives, `detourService.ts` finds higher-scoring segments of the fastest route, offsets waypoints around them, and makes up to six additional Google requests. It cannot tell Google to forbid arbitrary crime polygons and does not search every possible street route. The Google Maps handoff passes endpoints and available detour waypoints, but Google recalculates and may choose a different route. Arazul has no turn-by-turn navigation engine.
+
+Changing the historical hour or detour allowance re-scores cached candidates locally. It does not refresh Google's travel-time estimates; changing travel mode runs a new route search. Departure calculations use the selected city's timezone and handle daylight-saving transitions. Route caches are separated by city, endpoints, mode and departure selection. A city switch resets the view and prevents an earlier request from overwriting the new city.
+
+## Cities and incident coverage
+
+| City | Incident coverage | Exposure comparison |
+| --- | --- | --- |
+| São Paulo | Team-provided SSP-SP metro grid, 2025-01-01 to 2026-08-31 | Walking/driving, four six-hour windows; original preprocessing pipeline is not in this repository |
+| New York City | Central Manhattan, selected outdoor reports, 2025 | Walking only, four six-hour windows |
+| Chicago | Loop, selected outdoor reports, 2025 | Walking only, four six-hour windows |
+| San Francisco | Downtown, selected street/public-place robbery reports, 2025 | Walking only, four six-hour windows |
+| London | Central London rectangle, selected published categories, August 2026 | Walking only; monthly source has no incident hours |
+| Lima | Google routing available | No verified incident dataset connected; no exposure ranking |
+
+Google can return routes beyond the coverage rectangles. Exposure comparison requires every sampled route in the comparison to stay within documented coverage and use a supported travel mode. Missing data never means low risk. London does not acquire invented nighttime scores. City sources, offence selections, periods and normalization differ; percentages compare routes within one dataset, not the safety of one city against another. See [US provenance](docs/US_CITY_DATA.md), [London provenance](docs/LONDON_DATA.md), and [Lima source audit](docs/LIMA_DATA.md).
+
+## Where to make changes
+
+| Area | Files |
+| --- | --- |
+| City registry, map centers, search countries, timezones and examples | `src/config/cities.ts`, `src/context/CityContext.tsx` |
+| Main UI and request lifecycle | `src/components/AppShell.tsx`, `src/pages/` |
+| Google loading, Places and routing | `src/services/googleMaps.ts`, `src/components/LocationSearch.tsx`, `src/services/routingService.ts` |
+| Incident data validation/loading | `src/services/riskDataService.ts`, `public/data/` |
+| Scoring and detour generation | `src/services/exposureService.ts`, `src/services/detourService.ts`, `src/config/exposureConfig.ts` |
+| Map rendering and overlays | `src/map/` |
+| English, Portuguese and Spanish text | `src/i18n/` |
+| Reproducible imported city aggregates | `scripts/import-brisa-cities.py`, `scripts/build-london-data.py` |
+
+A new city needs an entry in the registry, verified source provenance and spatial coverage, a runtime aggregate with supported modes/time resolution, and regression tests. A routing-only city can use `datasetUrl: null`. Production use still needs Google API billing/restrictions, reliable hosting for runtime datasets, a refresh pipeline and monitoring. The original Brisa native app projects are not part of Arazul; selected activity, time-comparison and trip-sharing features have been adapted for this web app.
+
+## Activity, departure comparisons and trip sharing
+
+The **Latest published activity** layer shows approximate groups from supported official feeds, with source cadence, last check, latest available event and published window. It is latest-published information, **not verified real-time crime**: dispatch calls may be unverified and published reports can be delayed. Groups use approximate 250 m cells with at least two records; they do not change historical route scores. The Off setting remains off when switching cities. Cities without a verified source explicitly show that limitation.
+
+The time-of-day comparison uses four six-hour windows only when the historical source includes incident hours. It compares the same selected route locally; it does not fetch new Google routes or traffic estimates. All-day sources such as London have no invented hourly chart. Missing data, unsupported modes and routes outside coverage do not receive exposure scores.
+
+**Share trip** creates a URL fragment only after the user clicks Share. Endpoint labels or coordinates are not automatically written into the address bar or persisted as trip history. A link intentionally contains those endpoints, so share it only with intended recipients. Opening it validates the payload, prefills the selected city and trip, then removes the fragment from the address bar. It does not automatically call Google routing: the recipient clicks **Find routes**. Recalculated routes and estimates may change. Native sharing falls back to clipboard or a selectable field; local-server links require network access to that server.
+
+**Download summary** saves a plain-text account of the selected trip, city/timezone, mode, departure selection, extra-time budget, route distance/time and historical dataset source/period. Unavailable exposure scores are omitted. It exports no GPX or Google route geometry. See [feature behavior and limitations](docs/FEATURES.md).

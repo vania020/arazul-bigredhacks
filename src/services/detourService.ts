@@ -5,12 +5,18 @@ import type { CandidateRoute, ScoredRoute } from "@/types/route";
 
 /** Builds via-points beside the fastest route's top hotspots and asks Google for detours. */
 export async function generateDetours(
-  fastest: ScoredRoute, base: Omit<RouteQuery, "intermediates" | "alternatives">, maxDurationSec: number,
+  fastest: ScoredRoute,
+  base: Omit<RouteQuery, "intermediates" | "alternatives">,
+  maxDurationSec: number,
 ): Promise<CandidateRoute[]> {
-  const top = [...fastest.hotspots].sort((a, b) => b.exposure - a.exposure).slice(0, C.detour.maxHotspots);
-  const vias = top.flatMap((h) =>
-    C.detour.offsetsM.map((m) => perpendicularOffset(h.midpoint, h.midpoint, h.bearingPoint, m)),
-  ).slice(0, C.detour.maxRequests);
+  const top = [...fastest.hotspots]
+    .sort((a, b) => b.exposure - a.exposure)
+    .slice(0, C.detour.maxHotspots);
+  const vias = top
+    .flatMap((h) =>
+      C.detour.offsetsM.map((m) => perpendicularOffset(h.midpoint, h.midpoint, h.bearingPoint, m)),
+    )
+    .slice(0, C.detour.maxRequests);
 
   const results: CandidateRoute[] = [];
   let i = 0;
@@ -20,7 +26,9 @@ export async function generateDetours(
       try {
         const r = await computeRoutes({ ...base, intermediates: [via], alternatives: false });
         results.push(...r);
-      } catch { /* silent: detours are optional */ }
+      } catch {
+        /* silent: detours are optional */
+      }
     }
   };
   await Promise.all(Array.from({ length: C.detour.concurrency }, worker));
