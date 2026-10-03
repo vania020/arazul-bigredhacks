@@ -16,7 +16,7 @@ import { dedupeRoutes, generateDetours } from "@/services/detourService";
 import { MapView } from "@/map/MapView";
 import { RoutePolyline } from "@/map/RoutePolyline";
 import { RouteEndpoints } from "@/map/RouteEndpoints";
-import { ExposureLayer } from "@/map/ExposureLayer";
+import { ExposureLayer, type ExposureLayerStatus } from "@/map/ExposureLayer";
 import { BrandHeader } from "./BrandHeader";
 import { AraBird } from "./AraBird";
 import { ExposureLegend } from "./ExposureLegend";
@@ -30,6 +30,7 @@ import type { CandidateRoute, SearchRequest } from "@/types/route";
 
 import { TimeOfDayComparison } from "./TimeOfDayComparison";
 import { TripTools } from "./TripTools";
+import { heatmapCopy } from "@/i18n/heatmap";
 import { planningCopy } from "@/i18n/planning";
 import { usePublishedActivity, PublishedActivity, ActivityLayer } from "@/activity";
 import { MapPointPicker } from "@/map/MapPointPicker";
@@ -43,6 +44,7 @@ const cache = new Map<string, CandidateRoute[]>();
 export function AppShell() {
   const { t, lang } = useI18n();
   const copy = planningCopy[lang];
+  const heatmapText = heatmapCopy[lang];
   const {
     city,
     setCity,
@@ -79,7 +81,7 @@ export function AppShell() {
   const [whyOpen, setWhyOpen] = useState(false);
   const [methOpen, setMethOpen] = useState(false);
   const [layer, setLayer] = useState<"off" | "route" | "city">("off");
-  const [zoomOk, setZoomOk] = useState(true);
+  const [heatmapStatus, setHeatmapStatus] = useState<ExposureLayerStatus>("ready");
   const [ara, setAra] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(0);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -563,7 +565,7 @@ export function AppShell() {
           hour={hour}
           route={selected?.path}
           scope={rec ? layer : "city"}
-          onZoomOk={setZoomOk}
+          onStatus={setHeatmapStatus}
         />
       )}
       {map &&
@@ -610,7 +612,7 @@ export function AppShell() {
                   aria-checked={(canShowLayer ? layer : "off") === k}
                   disabled={k !== "off" && !canShowLayer}
                   onClick={() => setLayer(k)}
-                  className={`h-9 rounded-full px-3 disabled:opacity-40 text-xs font-semibold transition-colors ${layer === k ? "bg-primary text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
+                  className={`h-9 rounded-full px-3 disabled:opacity-40 text-xs font-semibold transition-colors ${(canShowLayer ? layer : "off") === k ? "bg-primary text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
                 >
                   {k === "off" ? label : rec ? label : t("layerToggle")}
                 </button>
@@ -628,12 +630,56 @@ export function AppShell() {
               {copy.activity} · {activityEnabled ? copy.on : copy.off}
             </button>
           )}
-          {canShowLayer && layer !== "off" && !zoomOk && (
-            <p className="glass rounded-full border px-3 py-1.5 text-xs text-text-secondary">
-              {t("zoomHint")}
+          {!canShowLayer && (
+            <p
+              role="status"
+              className="glass max-w-full rounded-xl border px-3 py-2 text-xs text-text-secondary"
+            >
+              {dataState === "loading"
+                ? t("dataLoading")
+                : dataState === "error"
+                  ? t("dataLoadError")
+                  : grid
+                    ? t("unsupportedMode")
+                    : heatmapText.unavailable}
             </p>
           )}
-          {canShowLayer && layer !== "off" && zoomOk && <ExposureLegend />}
+          {canShowLayer && layer !== "off" && heatmapStatus !== "ready" && (
+            <div
+              role="status"
+              className="glass max-w-full rounded-xl border px-3 py-2 text-xs text-text-secondary"
+            >
+              <p>
+                {heatmapStatus === "zoom-in"
+                  ? t("zoomHint")
+                  : heatmapStatus === "outside-coverage"
+                    ? heatmapText.outside
+                    : heatmapText.empty}
+              </p>
+              {heatmapStatus === "zoom-in" ? (
+                <button
+                  type="button"
+                  className="min-h-9 font-semibold text-primary underline"
+                  onClick={() => map?.setZoom(C.layer.minZoom)}
+                >
+                  {heatmapText.zoom}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="min-h-9 font-semibold text-primary underline"
+                  onClick={() => {
+                    setLayer("city");
+                    map?.panTo(city.center);
+                    map?.setZoom(Math.max(city.zoom, C.layer.minZoom));
+                  }}
+                >
+                  {heatmapText.coverage}
+                </button>
+              )}
+            </div>
+          )}
+          {canShowLayer && layer !== "off" && heatmapStatus === "ready" && <ExposureLegend />}
         </div>
       )}
     </div>
