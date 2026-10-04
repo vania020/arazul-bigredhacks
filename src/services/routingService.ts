@@ -1,6 +1,6 @@
 import { importLib } from "./googleMaps";
 import type { TravelMode } from "@/types/risk";
-import type { CandidateRoute, LatLng, LocationValue } from "@/types/route";
+import type { CandidateRoute, LatLng, LocationValue, RouteStep } from "@/types/route";
 
 let seq = 0;
 
@@ -15,6 +15,44 @@ export interface RouteQuery {
   departure: Date | null;
   intermediates?: LatLng[];
   alternatives: boolean;
+  /** BCP-47 language for Google's step instructions (e.g. "pt-BR"). */
+  language?: string;
+}
+
+const toLatLng = (p: google.maps.LatLngAltitude | google.maps.LatLngLiteral): LatLng => ({
+  lat: num(p.lat),
+  lng: num(p.lng),
+});
+
+/** Flattens every leg's steps; navigation follows these on exactly the scored geometry. */
+function toSteps(legs: google.maps.routes.RouteLeg[] | undefined): RouteStep[] | undefined {
+  const steps = (legs ?? []).flatMap((leg) =>
+    (leg.steps ?? []).map((s) => {
+      const path = (s.path ?? []).map(toLatLng);
+      if (path.length < 2 && s.startLocation && s.endLocation)
+        path.splice(0, path.length, toLatLng(s.startLocation), toLatLng(s.endLocation));
+      return {
+        instruction: s.instructions ?? "",
+        maneuver: s.maneuver ?? null,
+        distanceMeters: s.distanceMeters ?? 0,
+        durationSec: Math.round((s.staticDurationMillis ?? 0) / 1000),
+        path,
+      };
+    }),
+  );
+  return steps.length ? steps : undefined;
+}
+
+let warnedMissingSteps = false;
+/** One console hint if Google omits step data, instead of silently degrading navigation. */
+function checkSteps(steps: RouteStep[] | undefined) {
+  if (warnedMissingSteps) return;
+  const usable = steps?.some((s) => s.instruction && s.path.length >= 2);
+  if (usable) return;
+  warnedMissingSteps = true;
+  console.warn(
+    "[ARAZUL routing] Google returned no usable route steps (instructions + step path); in-app navigation will only show 'Follow the route'. Check ComputeRoutesRequest.fields includes 'legs' and 'path'.",
+  );
 }
 
 /** Routes library computeRoutes (no legacy DirectionsService). */
@@ -25,8 +63,11 @@ export async function computeRoutes(q: RouteQuery): Promise<CandidateRoute[]> {
     destination: toWaypoint(q.destination),
     travelMode: q.mode === "walking" ? "WALKING" : "DRIVING",
     computeAlternativeRoutes: q.alternatives,
-    fields: ["path", "distanceMeters", "durationMillis"],
+    // "legs" carries RouteLeg.steps (instructions, maneuver, start/end locations, static
+    // duration); RouteLegStep.path is only populated when "path" is also requested.
+    fields: ["path", "distanceMeters", "durationMillis", "legs"],
   };
+  if (q.language) req.language = q.language;
   if (q.mode === "driving") {
     req.routingPreference = "TRAFFIC_AWARE";
     if (q.departure) req.departureTime = q.departure;
@@ -39,14 +80,19 @@ export async function computeRoutes(q: RouteQuery): Promise<CandidateRoute[]> {
       (r): r is google.maps.routes.Route & { path: google.maps.LatLng[] } =>
         !!r.path && r.path.length > 1,
     )
-    .map((r) => ({
-      id: `r${++seq}`,
-      source: q.intermediates?.length ? "detour" : "google",
-      path: r.path.map((p) => ({ lat: num(p.lat), lng: num(p.lng) })),
-      distanceMeters: r.distanceMeters ?? 0,
-      durationSec: Math.round((r.durationMillis ?? 0) / 1000),
-      ...(q.intermediates ? { via: q.intermediates } : {}),
-    }));
+    .map((r) => {
+      const steps = toSteps(r.legs);
+      checkSteps(steps);
+      return {
+        id: `r${++seq}`,
+        source: q.intermediates?.length ? "detour" : "google",
+        path: r.path.map(toLatLng),
+        distanceMeters: r.distanceMeters ?? 0,
+        durationSec: Math.round((r.durationMillis ?? 0) / 1000),
+        ...(q.intermediates ? { via: q.intermediates } : {}),
+        ...(steps ? { steps } : {}),
+      };
+    });
 }
 
 /** Earliest local hour boundary more than one minute ahead, including DST repeats/skips. */

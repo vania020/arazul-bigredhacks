@@ -11,6 +11,7 @@ export function RouteEndpoints({
   endLabel,
   startAddress,
   endAddress,
+  showStart = true,
 }: {
   map: google.maps.Map;
   start: LatLng;
@@ -19,10 +20,14 @@ export function RouteEndpoints({
   endLabel: string;
   startAddress: string;
   endAddress: string;
+  /** Hidden during navigation, where the live location marker replaces the origin. */
+  showStart?: boolean;
 }) {
   useEffect(() => {
     const markers = [
-      { point: start, letter: "A", label: startLabel, type: "start", address: startAddress },
+      ...(showStart
+        ? [{ point: start, letter: "A", label: startLabel, type: "start", address: startAddress }]
+        : []),
       { point: end, letter: "B", label: endLabel, type: "end", address: endAddress },
     ].map(({ point, letter, label, type, address }) => {
       class Endpoint extends google.maps.OverlayView {
@@ -69,6 +74,6 @@ export function RouteEndpoints({
       return marker;
     });
     return () => markers.forEach((marker) => marker.setMap(null));
-  }, [map, start, end, startLabel, endLabel, startAddress, endAddress]);
+  }, [map, start, end, startLabel, endLabel, startAddress, endAddress, showStart]);
   return null;
 }

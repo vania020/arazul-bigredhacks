@@ -111,10 +111,10 @@ cp .env.example .env.local
 # Set VITE_GOOGLE_MAPS_API_KEY in .env.local.
 # Install the exact versions in the existing Bun lockfile; Bun need not be installed globally.
 npm exec --yes --package=bun -- bun install --frozen-lockfile
-npm run dev:local
+npm run dev
 ```
 
-Open `http://127.0.0.1:5180/`. This command enables the asset proxy already included in Lovable's Vite configuration, using the project ID in `src/assets/risk-grid.json.asset.json`. The 11 MB risk grid is still fetched at runtime. Without the proxy, ordinary `npm run dev` cannot resolve São Paulo’s Lovable-hosted asset locally. Routing remains available, but exposure scoring is explicitly unavailable; synthetic fallback data is never substituted. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
+Open `http://localhost:8080/`. Both `npm run dev` and `npm run dev:local` (same app, pinned to `http://127.0.0.1:5180/`) enable the asset proxy already included in Lovable's Vite configuration: `vite.config.ts` and `scripts/dev-local.mjs` share `scripts/lovable-asset-host.mjs`, which defaults `LOVABLE_PREVIEW_HOST` to this project's preview host from the project ID in `src/assets/risk-grid.json.asset.json`. The proxy is dev-server only; production builds and Lovable's own sandbox are unchanged. The 11 MB risk grid is still fetched at runtime. If the hosted asset cannot be reached, routing remains available, but exposure scoring is explicitly unavailable; synthetic fallback data is never substituted. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
 
 Google Maps reads `VITE_GOOGLE_MAPS_API_KEY` from the local Vite environment. `.env.local` stays ignored by Git; copy `.env.example` and supply your browser-restricted key. Map display, address suggestions and route calculation require the corresponding Google Maps, Places and Routes services to be available to that key, including permission for the local origin. The demo-trip button fills the form; click **Find routes** to calculate it.
 
@@ -126,7 +126,7 @@ This is an independent app that uses Google Maps APIs, not a Chrome extension or
 
 The request flow is: choose city/endpoints/mode → Google route candidates → sample each route approximately every 30 metres → look up historical grid values → multiply by route length and sum → compare with the fastest option inside the extra-time budget. Time-aware sources blend 70% selected six-hour bucket with 30% all-day average. A longer route is recommended only if its modeled exposure is at least 15% lower. These are tunable prototype rules, not calibrated probabilities or a proven safety model.
 
-To look beyond Google's initial alternatives, `detourService.ts` finds higher-scoring segments of the fastest route, offsets waypoints around them, and makes up to six additional Google requests. It cannot tell Google to forbid arbitrary crime polygons and does not search every possible street route. The Google Maps handoff passes endpoints and available detour waypoints, but Google recalculates and may choose a different route. Arazul has no turn-by-turn navigation engine.
+To look beyond Google's initial alternatives, `detourService.ts` finds higher-scoring segments of the fastest route, offsets waypoints around them, and makes up to six additional Google requests. It cannot tell Google to forbid arbitrary crime polygons and does not search every possible street route. Selected routes can be navigated inside Arazul (see [In-app navigation](#in-app-navigation)). The optional Google Maps handoff passes endpoints and available detour waypoints, but Google recalculates and may choose a different route.
 
 Changing the historical hour or detour allowance re-scores cached candidates locally. It does not refresh Google's travel-time estimates; changing travel mode runs a new route search. Departure calculations use the selected city's timezone and handle daylight-saving transitions. Route caches are separated by city, endpoints, mode and departure selection. A city switch resets the view and prevents an earlier request from overwriting the new city.
 
@@ -153,10 +153,19 @@ Google can return routes beyond the coverage rectangles. Exposure comparison req
 | Incident data validation/loading | `src/services/riskDataService.ts`, `public/data/` |
 | Scoring and detour generation | `src/services/exposureService.ts`, `src/services/detourService.ts`, `src/config/exposureConfig.ts` |
 | Map rendering and overlays | `src/map/` |
+| In-app navigation (GPS matching, rerouting, voice) and its thresholds | `src/navigation/`, `src/components/navigation/`, `src/config/navigationConfig.ts` |
 | English, Portuguese and Spanish text | `src/i18n/` |
 | Reproducible imported city aggregates | `scripts/import-brisa-cities.py`, `scripts/build-london-data.py` |
 
 A new city needs an entry in the registry, verified source provenance and spatial coverage, a runtime aggregate with supported modes/time resolution, and regression tests. A routing-only city can use `datasetUrl: null`. Production use still needs Google API billing/restrictions, reliable hosting for runtime datasets, a refresh pipeline and monitoring. The original Brisa native app projects are not part of Arazul; selected activity, time-comparison and trip-sharing features have been adapted for this web app.
+
+## In-app navigation
+
+**Start navigation** follows the selected Arazul route itself: Arazul chooses the route, Google supplies its geometry, ETA and turn instructions (requested with the route search, so starting costs no extra request), and the browser supplies live GPS through `navigator.geolocation.watchPosition`, which starts only after the user presses Start and stops on end, arrival, error or unmount. Positions stay in memory; no location history is stored or sent anywhere except as the origin of a reroute request to Google.
+
+GPS readings are matched to the route locally (accuracy-weighted corridor, windowed matching, step advance only after passing a maneuver). Rerouting needs several trusted off-route readings over at least six seconds, has a cooldown with backoff and a per-trip cap, and keeps the user's choice: **Recommended** replans with Arazul's scoring (only routes inside data coverage are compared, otherwise it rejoins the selected route, otherwise it reports that the choice can't be kept), **Fastest** replans for the fastest route, and a chosen **alternative** is rejoined. Arazul never substitutes Google's default route. Voice prompts use the browser's `speechSynthesis` and can be muted. All thresholds are documented in `src/config/navigationConfig.ts`.
+
+This is web navigation: browsers may pause GPS when the screen locks or the tab is backgrounded (a screen wake lock is requested where supported), and geolocation requires a secure page (`https://` or `localhost`/`127.0.0.1`).
 
 ## Activity, departure comparisons and trip sharing
 

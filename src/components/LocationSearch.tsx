@@ -14,6 +14,8 @@ interface Props {
   mapsReady: boolean;
   allowCurrent?: boolean;
   onPick?: (() => void) | undefined;
+  /** "inline": a row inside a shared trip card (visually hidden label, icon actions). */
+  variant?: "field" | "inline";
 }
 
 interface Suggestion {
@@ -31,7 +33,9 @@ export function LocationSearch({
   mapsReady,
   allowCurrent,
   onPick,
+  variant = "field",
 }: Props) {
+  const inline = variant === "inline";
   const { t, lang } = useI18n();
   const { city } = useCity();
   const [items, setItems] = useState<Suggestion[]>([]);
@@ -175,16 +179,65 @@ export function LocationSearch({
   };
 
   const listId = `${id}-list`;
+  const pickButton = onPick && (
+    <button
+      type="button"
+      disabled={!mapsReady}
+      onClick={() => {
+        invalidate();
+        typed.current = false;
+        onPick();
+      }}
+      className={
+        inline
+          ? "grid h-9 w-9 shrink-0 place-items-center rounded-full text-text-secondary hover:bg-secondary hover:text-primary disabled:opacity-40"
+          : "mt-1 min-h-9 text-xs font-semibold text-primary underline disabled:opacity-40"
+      }
+      aria-label={`${planningCopy[lang].pick}: ${t(kind)}`}
+      title={planningCopy[lang].pick}
+    >
+      {inline ? (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-5 w-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          aria-hidden
+        >
+          <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+          <path d="M9 4v14M15 6v14" />
+        </svg>
+      ) : (
+        planningCopy[lang].pick
+      )}
+    </button>
+  );
   return (
     <div className="relative">
-      <label htmlFor={id} className="mb-1.5 block text-sm font-semibold text-foreground">
+      <label
+        htmlFor={id}
+        className={inline ? "sr-only" : "mb-1.5 block text-sm font-semibold text-foreground"}
+      >
         {t(kind)}
       </label>
-      <div className="flex items-center gap-2 rounded-xl border bg-background px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20">
-        <span
-          aria-hidden
-          className={`h-3 w-3 shrink-0 rounded-full ${kind === "origin" ? "border-[3px] border-primary bg-card" : "bg-deep"}`}
-        />
+      <div
+        className={
+          inline
+            ? "flex items-center gap-2 rounded-xl px-2 focus-within:bg-secondary/60"
+            : "flex items-center gap-2 rounded-xl border bg-background px-3 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20"
+        }
+      >
+        {inline && kind === "destination" ? (
+          <svg viewBox="0 0 24 24" className="h-5 w-5 shrink-0 fill-pin" aria-hidden>
+            <path d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z" />
+          </svg>
+        ) : (
+          <span
+            aria-hidden
+            className={`shrink-0 rounded-full ${kind === "origin" ? (inline ? "mx-[3px] h-3.5 w-3.5 border-[3.5px] border-primary bg-card shadow-[0_0_0_3px_var(--sky-soft)]" : "h-3 w-3 border-[3px] border-primary bg-card") : "h-3 w-3 bg-deep"}`}
+          />
+        )}
         <input
           id={id}
           role="combobox"
@@ -218,8 +271,9 @@ export function LocationSearch({
             }
             if (e.key === "Escape") setOpen(false);
           }}
-          className="h-12 min-w-0 flex-1 bg-transparent text-[15px] outline-none placeholder:text-muted-foreground"
+          className={`h-12 min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground ${inline ? "text-[15px] font-medium text-foreground" : "text-[15px]"}`}
         />
+        {inline && pickButton}
         {allowCurrent && (
           <Button
             type="button"
@@ -227,7 +281,11 @@ export function LocationSearch({
             onClick={useCurrent}
             aria-label={t("useLocation")}
             title={t("useLocation")}
-            className="h-10 shrink-0 rounded-lg bg-secondary px-2 text-primary hover:bg-secondary/80"
+            className={
+              inline
+                ? "h-9 w-9 shrink-0 rounded-full p-0 text-primary hover:bg-secondary"
+                : "h-10 shrink-0 rounded-lg bg-secondary px-2 text-primary hover:bg-secondary/80"
+            }
           >
             <svg
               viewBox="0 0 24 24"
@@ -239,32 +297,20 @@ export function LocationSearch({
               <circle cx="12" cy="12" r="4" />
               <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
             </svg>
-            <span className="hidden text-xs font-semibold min-[420px]:inline">
+            <span
+              className={inline ? "sr-only" : "hidden text-xs font-semibold min-[420px]:inline"}
+            >
               {t("useLocation")}
             </span>
           </Button>
         )}
       </div>
-      {onPick && (
-        <button
-          type="button"
-          disabled={!mapsReady}
-          onClick={() => {
-            invalidate();
-            typed.current = false;
-            onPick();
-          }}
-          className="mt-1 min-h-9 text-xs font-semibold text-primary underline disabled:opacity-40"
-          aria-label={`${planningCopy[lang].pick}: ${t(kind)}`}
-        >
-          {planningCopy[lang].pick}
-        </button>
-      )}
+      {!inline && pickButton}
       {open && items.length > 0 && (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 w-full overflow-hidden rounded-xl border bg-popover shadow-float"
+          className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-2xl border bg-popover shadow-float"
         >
           {items.map((s, i) => (
             <li key={s.full} role="option" aria-selected={i === active}>
@@ -281,7 +327,7 @@ export function LocationSearch({
           ))}
         </ul>
       )}
-      {note && <p className="mt-1 text-sm text-text-secondary">{note}</p>}
+      {note && <p className={`mt-1 text-sm text-text-secondary ${inline ? "px-2" : ""}`}>{note}</p>}
       {devErr && <p className="mt-1 font-mono text-xs text-muted-foreground">{devErr}</p>}
     </div>
   );

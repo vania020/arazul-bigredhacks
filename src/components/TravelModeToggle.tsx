@@ -10,6 +10,7 @@ export const modeIcons: Record<TravelMode, React.ReactNode> = {
   ),
 };
 
+/** Pill-style travel mode choice (only the modes Arazul supports). */
 export function TravelModeToggle({
   value,
   onChange,
@@ -19,26 +20,25 @@ export function TravelModeToggle({
 }) {
   const { t } = useI18n();
   return (
-    <div
-      role="radiogroup"
-      aria-label={t("mode")}
-      className="grid grid-cols-2 gap-1 rounded-xl bg-muted p-1"
-    >
-      {(["walking", "driving"] as TravelMode[]).map((m) => (
-        <button
-          type="button"
-          key={m}
-          role="radio"
-          aria-checked={value === m}
-          onClick={() => onChange(m)}
-          className={`flex h-11 items-center justify-center gap-2 rounded-lg text-sm font-semibold transition-all ${value === m ? "bg-card text-deep shadow-soft" : "text-text-secondary hover:text-foreground"}`}
-        >
-          <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
-            {modeIcons[m]}
-          </svg>
-          {t(m)}
-        </button>
-      ))}
+    <div role="radiogroup" aria-label={t("mode")} className="grid grid-cols-2 gap-2">
+      {(["walking", "driving"] as TravelMode[]).map((m) => {
+        const on = value === m;
+        return (
+          <button
+            type="button"
+            key={m}
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(m)}
+            className={`flex h-12 items-center justify-center gap-2 rounded-full border text-sm font-semibold transition-all ${on ? "border-primary bg-secondary text-primary shadow-soft" : "bg-card text-text-secondary hover:border-sky hover:text-foreground"}`}
+          >
+            <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
+              {modeIcons[m]}
+            </svg>
+            {t(m)}
+          </button>
+        );
+      })}
     </div>
   );
 }

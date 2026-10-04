@@ -133,6 +133,6 @@ export const es: Dict = {
   timeCaveat:
     "Cuando hay datos por hora, cambiar la salida actualiza la exposición histórica. Los tiempos de viaje son los de la última búsqueda.",
   googleHandoff:
-    "Google Maps recalcula las indicaciones y puede elegir otra ruta. Arazul no ofrece navegación paso a paso.",
+    "Google Maps recalcula las indicaciones y puede elegir una ruta distinta de la que eligió ARAZUL.",
   routingArea: "Área de rutas: {region}",
 };

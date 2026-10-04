@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { ensurePreviewHost } from "./lovable-asset-host.mjs";
 
 const root = new URL("../", import.meta.url);
-const asset = JSON.parse(
-  readFileSync(new URL("src/assets/risk-grid.json.asset.json", root), "utf8"),
-);
-// The existing Lovable Vite plugin proxies hosted assets when this is present.
+// The existing Lovable Vite plugin proxies hosted assets when this is present. vite.config.ts
+// applies the same default, so `npm run dev` (port 8080) works too; this script only pins the
+// historical 127.0.0.1:5180 origin.
+ensurePreviewHost(fileURLToPath(root));
 const server = spawn(
   process.execPath,
   [
@@ -22,11 +22,7 @@ const server = spawn(
   {
     cwd: fileURLToPath(root),
     stdio: "inherit",
-    env: {
-      ...process.env,
-      LOVABLE_PREVIEW_HOST:
-        process.env.LOVABLE_PREVIEW_HOST || `id-preview--${asset.project_id}.lovable.app`,
-    },
+    env: process.env,
   },
 );
 for (const signal of ["SIGINT", "SIGTERM"]) {
