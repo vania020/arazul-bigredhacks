@@ -245,15 +245,21 @@ describe("exposure heatmap rendering", () => {
     expect(canvas.style.pointerEvents).toBe("none");
   });
 
-  it("reports zoom and coverage restrictions after moving the map and recovers on return", () => {
+  it.each([12, 10, 8, 0])("keeps the heatmap visible after zooming out to %s", (zoom) => {
     const f = mapFixture();
     const view = mount(f);
     f.paints.length = 0;
-    f.setZoom(12);
+    f.setZoom(zoom);
     f.idle();
-    expect(f.paints).toHaveLength(0);
-    expect(view.props.onStatus).toHaveBeenLastCalledWith("zoom-in");
-    f.setZoom(14);
+    expect(f.paints).toHaveLength(1);
+    expect((screen.getByTestId("exposure-heatmap") as HTMLCanvasElement).width).toBeGreaterThan(0);
+    expect(view.props.onStatus).toHaveBeenLastCalledWith("ready");
+  });
+
+  it("reports coverage restrictions after moving the map and recovers on return", () => {
+    const f = mapFixture();
+    const view = mount(f);
+    f.paints.length = 0;
     f.setBounds([1, 1, 1.01, 1.01]);
     f.idle();
     expect(f.paints).toHaveLength(0);

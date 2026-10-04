@@ -65,7 +65,7 @@ export const EXPOSURE_CONFIG = {
     /** One featured option plus up to two under "more options". */
     maxShown: 3,
   },
-  layer: { minZoom: 13, minValue: 1, minOpacity: 0.28, opacity: 0.45, routeOpacity: 0.55 },
+  layer: { minZoom: 0, minValue: 1, minOpacity: 0.28, opacity: 0.45, routeOpacity: 0.55 },
   /** Bucket index boundaries: madrugada 0-6, manha 6-12, tarde 12-18, noite 18-24. */
   bucketForHour: (h: number) => (h < 6 ? 0 : h < 12 ? 1 : h < 18 ? 2 : 3),
 } as const;
