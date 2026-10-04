@@ -86,7 +86,11 @@ export function computeProgress(route: NavRoute, alongM: number, stepIndex: numb
   const step = steps[stepIndex]!;
   const next = steps[stepIndex + 1];
   const maneuverAt = next ? next.startM : route.lengthM;
-  const departing = stepIndex === 0 && alongM - step.startM < N.step.departShowM;
+  // Show "Head north on…" briefly, but never past the middle of a short first step,
+  // otherwise the first turn would be skipped in the banner and voice prompts.
+  const firstSpan = maneuverAt - step.startM;
+  const departing =
+    stepIndex === 0 && alongM - step.startM < Math.min(N.step.departShowM, firstSpan / 2);
   const remainingM = Math.max(0, route.lengthM - alongM);
   let remainingSec: number;
   if (route.staticTotalSec > 0) {

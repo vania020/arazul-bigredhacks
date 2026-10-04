@@ -58,7 +58,8 @@ function whyLines(active: ActiveRoute, copy: NavCopy, preference: RoutePreferenc
       lines.push(fill(copy.whyIndex, { index: r.index, findex: f.index }));
     }
   }
-  if (active.version > 0) lines.push(copy.whyRerouted);
+  // Only a compared reroute was "compared with the options available where it was recalculated".
+  if (active.version > 0 && active.comparable) lines.push(copy.whyRerouted);
   lines.push(
     preference === "recommended"
       ? fill(copy.noteRecommended, { budget })

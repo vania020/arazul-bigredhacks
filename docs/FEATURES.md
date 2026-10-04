@@ -30,4 +30,4 @@ The text download includes the selected city and timezone, endpoints, departure 
 
 ## Language and boundaries
 
-Controls and summaries support English, Portuguese and Spanish using the existing language selection. There is no account service, live navigation engine, automated incident-ingestion backend or verified real-time crime feed. Google handoff recalculates routes independently.
+Controls and summaries support English, Portuguese and Spanish using the existing language selection. In-app navigation follows the selected Arazul route with browser GPS and Google turn instructions (see the README). There is no account service, automated incident-ingestion backend or verified real-time crime feed. The optional Google Maps handoff recalculates routes independently.

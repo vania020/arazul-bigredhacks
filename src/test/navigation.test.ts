@@ -457,3 +457,35 @@ describe("steps fallback for routes without Google steps", () => {
     expect(await fetchStepsFor(geometryOnly, "walking")).toBeNull();
   });
 });
+
+describe("short first step", () => {
+  it("does not hide the first turn behind the departure instruction", () => {
+    // Google often starts with a few metres of "Head north…" before the first turn.
+    const shortStart: CandidateRoute = {
+      ...lRoute,
+      path: [at(0), at(12), at(12, 300)],
+      steps: [
+        {
+          instruction: "Head north on Rua A",
+          maneuver: "DEPART",
+          distanceMeters: 12,
+          durationSec: 10,
+          path: [at(0), at(12)],
+        },
+        {
+          instruction: "Turn right onto Rua B",
+          maneuver: "TURN_RIGHT",
+          distanceMeters: 300,
+          durationSec: 240,
+          path: [at(12), at(12, 300)],
+        },
+      ],
+    };
+    const nav = buildNavRoute(shortStart, "Follow");
+    const { results } = feed(nav, [fix(at(0)), fix(at(8))]);
+    expect(results[0]!.progress!.primary).toMatchObject({ instruction: "Head north on Rua A" });
+    expect(results[1]!.progress!.primary).toMatchObject({ instruction: "Turn right onto Rua B" });
+    const prompt = nextVoicePrompt(results[1]!.progress!, [120, 20], new Set(), 0);
+    expect(prompt).toMatchObject({ now: true }); // spoken, not skipped
+  });
+});
