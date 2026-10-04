@@ -111,10 +111,10 @@ cp .env.example .env.local
 # Set VITE_GOOGLE_MAPS_API_KEY in .env.local.
 # Install the exact versions in the existing Bun lockfile; Bun need not be installed globally.
 npm exec --yes --package=bun -- bun install --frozen-lockfile
-npm run dev:local
+npm run dev
 ```
 
-Open `http://127.0.0.1:5180/`. This command enables the asset proxy already included in Lovable's Vite configuration, using the project ID in `src/assets/risk-grid.json.asset.json`. The 11 MB risk grid is still fetched at runtime. Without the proxy, ordinary `npm run dev` cannot resolve São Paulo’s Lovable-hosted asset locally. Routing remains available, but exposure scoring is explicitly unavailable; synthetic fallback data is never substituted. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
+Open `http://localhost:8080/`. Both `npm run dev` and `npm run dev:local` (same app, pinned to `http://127.0.0.1:5180/`) enable the asset proxy already included in Lovable's Vite configuration: `vite.config.ts` and `scripts/dev-local.mjs` share `scripts/lovable-asset-host.mjs`, which defaults `LOVABLE_PREVIEW_HOST` to this project's preview host from the project ID in `src/assets/risk-grid.json.asset.json`. The proxy is dev-server only; production builds and Lovable's own sandbox are unchanged. The 11 MB risk grid is still fetched at runtime. If the hosted asset cannot be reached, routing remains available, but exposure scoring is explicitly unavailable; synthetic fallback data is never substituted. Set `LOVABLE_PREVIEW_HOST` to a different accessible preview hostname if the team changes hosting.
 
 Google Maps reads `VITE_GOOGLE_MAPS_API_KEY` from the local Vite environment. `.env.local` stays ignored by Git; copy `.env.example` and supply your browser-restricted key. Map display, address suggestions and route calculation require the corresponding Google Maps, Places and Routes services to be available to that key, including permission for the local origin. The demo-trip button fills the form; click **Find routes** to calculate it.
 

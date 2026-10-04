@@ -27,6 +27,8 @@ export interface CandidateRoute {
   durationSec: number;
   via?: LatLng[];
   steps?: RouteStep[];
+  /** How the candidate was generated (development diagnostics only; not shown in the UI). */
+  label?: string;
 }
 
 export interface Hotspot {

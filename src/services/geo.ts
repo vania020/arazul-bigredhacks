@@ -55,3 +55,47 @@ export function pathSimilar(a: LatLng[], b: LatLng[], thresholdM: number) {
   for (let i = 0; i < n; i++) sum += distanceM(pick(a, i), pick(b, i));
   return sum / n < thresholdM;
 }
+
+/**
+ * Fast "is this point within tol metres of the path?" check, using a hashed index of points
+ * sampled along the path (tol up to ~50 m).
+ */
+export function pathProximity(path: LatLng[], spacingM = 15) {
+  const B = 0.0005; // ≈ 55 m buckets
+  const buckets = new Map<string, LatLng[]>();
+  const add = (p: LatLng) => {
+    const k = `${Math.floor(p.lat / B)}_${Math.floor(p.lng / B)}`;
+    const list = buckets.get(k);
+    if (list) list.push(p);
+    else buckets.set(k, [p]);
+  };
+  if (path[0]) add(path[0]);
+  samplePath(path, spacingM).forEach((s) => add(s.p));
+  return (p: LatLng, tolM: number) => {
+    const bi = Math.floor(p.lat / B),
+      bj = Math.floor(p.lng / B);
+    for (let di = -1; di <= 1; di++)
+      for (let dj = -1; dj <= 1; dj++)
+        for (const q of buckets.get(`${bi + di}_${bj + dj}`) ?? [])
+          if (distanceM(p, q) <= tolM) return true;
+    return false;
+  };
+}
+
+/** Share of a's length that lies within tolM of b (0..1). Not symmetric. */
+export function routeOverlap(
+  a: LatLng[],
+  b: LatLng[] | ((p: LatLng, tolM: number) => boolean),
+  tolM = 35,
+) {
+  const near = typeof b === "function" ? b : pathProximity(b);
+  const samples = samplePath(a, 25);
+  if (!samples.length) return 0;
+  let len = 0,
+    close = 0;
+  for (const { p, w } of samples) {
+    len += w;
+    if (near(p, tolM)) close += w;
+  }
+  return len > 0 ? close / len : 0;
+}

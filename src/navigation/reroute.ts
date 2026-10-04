@@ -1,7 +1,7 @@
 import { EXPOSURE_CONFIG as C } from "@/config/exposureConfig";
 import { NAVIGATION_CONFIG as N } from "@/config/navigationConfig";
 import { computeRoutes, type RouteQuery } from "@/services/routingService";
-import { dedupeRoutes, generateDetours } from "@/services/detourService";
+import { dedupeRoutes, generateDetours, type DetourTrace } from "@/services/detourService";
 import { recommend, routeCoverage, scoreRoute } from "@/services/exposureService";
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type {
@@ -188,18 +188,18 @@ export async function planReroute(input: RerouteInput): Promise<ReroutePlan> {
   if (grid && coveredAlts.length) {
     const fastestC = coveredAlts.reduce((a, b) => (b.durationSec < a.durationSec ? b : a));
     const fastest = scoreRoute(fastestC, grid, mode, hour);
-    requests += Math.min(
-      C.detour.maxRequests,
-      Math.min(C.detour.maxHotspots, fastest.hotspots.length) * C.detour.offsetsM.length,
-    );
+    // Same region-aware bypass search as planning; the trace counts the requests it really sent.
+    const trace: DetourTrace = { requests: [], duplicates: [] };
     const detours = await generateDetours(
       fastest,
       base,
       fastestC.durationSec + C.extraTime.max * 60,
+      { grid, mode, hour, known: coveredAlts, trace },
     ).catch((e) => {
       failures.push(`detours: ${describeFailure(e)}`);
       return [];
     });
+    requests += trace.requests.filter((q) => !q.status.startsWith("skipped")).length;
     pool.push(...comparable(detours));
   }
   pool = dedupeRoutes(pool);

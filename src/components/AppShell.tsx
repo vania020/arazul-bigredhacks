@@ -12,7 +12,13 @@ import {
   nextOccurrenceOfHour,
 } from "@/services/routingService";
 import { recommend, scoreRoute, hasExposureComparison } from "@/services/exposureService";
-import { dedupeRoutes, generateDetours } from "@/services/detourService";
+import { dedupeRoutes, generateDetours, type DetourTrace } from "@/services/detourService";
+import {
+  createDetourTrace,
+  explainRecommendation,
+  logRouteDebug,
+  routeDebugEnabled,
+} from "@/services/routeDebug";
 import { MapView } from "@/map/MapView";
 import { RoutePolyline } from "@/map/RoutePolyline";
 import { RouteEndpoints } from "@/map/RouteEndpoints";
@@ -29,6 +35,8 @@ import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { CandidateRoute, SearchRequest } from "@/types/route";
 
 import { TimeOfDayComparison } from "./TimeOfDayComparison";
+import { LowerExposureOption } from "./LowerExposureOption";
+import { outsideBudgetOptions, type OutsideBudgetOption } from "@/services/outsideBudget";
 import { TripTools } from "./TripTools";
 import { heatmapCopy } from "@/i18n/heatmap";
 import { planningCopy } from "@/i18n/planning";
@@ -180,6 +188,41 @@ export function AppShell() {
     [candidates, grid, searchMode, hour, extra],
   );
 
+  // Lower-exposure routes Arazul already generated but that exceed the user's budget: shown as a
+  // secondary option (never recommended). Cached candidates only, so no extra Google requests.
+  const scoredCandidates = useMemo(
+    () => (candidates ? candidates.map((c) => scoreRoute(c, grid, searchMode, hour)) : []),
+    [candidates, grid, searchMode, hour],
+  );
+  const outside = useMemo(
+    () => outsideBudgetOptions(rec, scoredCandidates, extra),
+    [rec, scoredCandidates, extra],
+  );
+  // Choosing one is explicit: the budget rises to cover it (the UI shows the new allowance) and
+  // the route is selected; it is then an ordinary eligible candidate for navigation.
+  const chooseOutsideBudgetRoute = (option: OutsideBudgetOption) => {
+    setExtra(Math.min(C.extraTime.max, Math.max(extra, option.allowMin)));
+    setSelectedId(option.route.id);
+  };
+
+  // Development only: explain every candidate's outcome (console table + window.__arazulRouteDebug).
+  const searchTrace = useRef<DetourTrace | null>(null);
+  useEffect(() => {
+    if (!routeDebugEnabled || !rec || !candidates) return;
+    logRouteDebug(
+      explainRecommendation({
+        candidates,
+        rec,
+        grid,
+        mode: searchMode,
+        hour,
+        extraMin: extra,
+        trace: searchTrace.current,
+      }),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rec]);
+
   // Ara + selection on recommendation changes
   const prevRecId = useRef<string | null>(null);
   const reason = useRef<"search" | "time" | "mode" | null>(null);
@@ -292,6 +335,7 @@ export function AppShell() {
         const fastest = scoreRoute(fastestC, g, req.mode, h);
         setStep(2);
         let detours: CandidateRoute[] = [];
+        const trace = routeDebugEnabled ? createDetourTrace() : undefined;
         try {
           if (g && base.every((route) => scoreRoute(route, g, req.mode, h).coverage === "covered"))
             detours = await generateDetours(
@@ -304,12 +348,15 @@ export function AppShell() {
                 language,
               },
               fastestC.durationSec + C.extraTime.max * 60,
+              // Grid context enables region-aware bypasses around high-exposure regions.
+              { grid: g, mode: req.mode, hour: h, known: base, ...(trace ? { trace } : {}) },
             );
         } catch {
           detours = [];
         }
         if (cancelled()) return;
-        const all = dedupeRoutes([...base, ...detours]);
+        const all = dedupeRoutes([...base, ...detours], trace);
+        searchTrace.current = trace ?? null;
         cache.set(key, all);
         setAra(null);
         finish(all);
@@ -514,6 +561,15 @@ export function AppShell() {
           feedback={feedback}
           timeComparison={timeComparison}
           tripTools={tripTools}
+          lowerExposure={
+            outside.options.length ? (
+              <LowerExposureOption
+                options={outside.options}
+                budget={extra}
+                onUse={chooseOutsideBudgetRoute}
+              />
+            ) : null
+          }
         />
       ) : (
         <SearchPage

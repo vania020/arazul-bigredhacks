@@ -27,6 +27,8 @@ interface Props {
   feedback: string | null;
   timeComparison?: ReactNode;
   tripTools?: ReactNode;
+  /** Lower-exposure routes outside the time budget (secondary; never the recommendation). */
+  lowerExposure?: ReactNode;
 }
 
 const mins = (r: ScoredRoute) => Math.max(1, Math.round(r.durationSec / 60));
@@ -49,6 +51,7 @@ export function NavigationPage({
   feedback,
   timeComparison,
   tripTools,
+  lowerExposure,
 }: Props) {
   const { t, lang } = useI18n();
   const copy = planningCopy[lang];
@@ -141,6 +144,7 @@ export function NavigationPage({
           onWhy={kind === "recommended" ? onWhy : undefined}
         />
       ))}
+      {lowerExposure}
       {timeComparison}
       {tripTools}
       <details className="rounded-xl border p-3">
