@@ -1,9 +1,8 @@
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import { navigationCopy } from "@/i18n/navigation";
 import { routeUiCopy } from "@/i18n/routeUi";
-import { tripToolsText } from "@/i18n/trip-tools";
 import { hasExposureComparison } from "@/services/exposureService";
 import { RouteComparison } from "@/components/RouteComparison";
 import { RouteCard } from "@/components/RouteCard";
@@ -30,7 +29,6 @@ interface Props {
   extra: number;
   setExtra: (n: number) => void;
   feedback: string | null;
-  tripTools?: ReactNode;
   /** Lower-exposure routes outside the time budget (secondary; never the recommendation). */
   lowerExposure?: ReactNode;
   /** Phone: open the sheet fully when the user asks for other options. */
@@ -74,6 +72,8 @@ export function TripHeader({
       <button
         type="button"
         onClick={onBack}
+        aria-label={t("back")}
+        title={t("back")}
         className="flex h-11 shrink-0 items-center gap-1 rounded-xl px-2 text-sm font-semibold text-primary hover:bg-secondary"
       >
         <svg
@@ -86,7 +86,6 @@ export function TripHeader({
         >
           <path d="M15 6l-6 6 6 6" />
         </svg>
-        {t("back")}
       </button>
       <div className="min-w-0 flex-1 text-right">
         <p className="truncate text-sm font-semibold text-foreground">→ {form.destination.label}</p>
@@ -171,7 +170,6 @@ export function NavigationPage({
   extra,
   setExtra,
   feedback,
-  tripTools,
   lowerExposure,
   onExpand,
   layout = "panel",
@@ -180,10 +178,12 @@ export function NavigationPage({
   const copy = planningCopy[lang];
   const ui = routeUiCopy[lang];
   const nav = navigationCopy[lang];
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const optionsRef = useRef<HTMLElement>(null);
   const comparisonAvailable = hasExposureComparison(rec);
   const { options, current } = routeOptions(rec, selectedId);
   const showOtherOptions = () => {
+    setOptionsOpen((open) => !open);
     onExpand?.();
     // Let the sheet finish expanding before scrolling the list into view.
     setTimeout(
@@ -198,31 +198,28 @@ export function NavigationPage({
       {layout === "panel" && (
         <RouteSwitcher rec={rec} selectedId={selectedId} onSelect={onSelect} />
       )}
-
       <RouteSummary
         route={current.route}
         kind={current.kind}
         fastest={rec.fastest}
         comparisonAvailable={comparisonAvailable}
         onStart={() => onStart(current.route.id, current.kind)}
-        onOtherOptions={showOtherOptions}
-        onWhy={current.kind === "recommended" ? onWhy : undefined}
+        onOtherOptions={options.length > 1 ? showOtherOptions : undefined}
+        onWhy={onWhy}
       />
 
-      <RouteComparison rec={rec} budget={extra} />
       {feedback && (
         <p role="status" className="fade-up text-center text-sm font-medium text-primary">
           {feedback}
         </p>
       )}
-      {lowerExposure}
 
-      {/* The time preference stays visible next to the routes it shapes. */}
-      <div className="rounded-2xl border bg-card px-4 py-3 shadow-soft">
-        <DetourBudgetSlider value={extra} onChange={setExtra} compact />
-      </div>
-
-      <section ref={optionsRef} aria-label={ui.otherOptions} className="scroll-mt-4 space-y-2">
+      <section
+        hidden={!optionsOpen}
+        ref={optionsRef}
+        aria-label={ui.otherOptions}
+        className="scroll-mt-4 space-y-2"
+      >
         <h2 className="px-1 text-xs font-bold uppercase tracking-wider text-text-secondary">
           {ui.otherOptions}
         </h2>
@@ -236,7 +233,10 @@ export function NavigationPage({
               fastest={rec.fastest}
               selected={false}
               comparisonAvailable={comparisonAvailable}
-              onSelect={() => onSelect(route.id)}
+              onSelect={() => {
+                onSelect(route.id);
+                setOptionsOpen(false);
+              }}
             />
           ))}
         <div className="rounded-2xl border bg-card px-4 py-3">
@@ -251,9 +251,13 @@ export function NavigationPage({
         </div>
       </section>
 
-      {tripTools && <SheetSection title={tripToolsText[lang].share}>{tripTools}</SheetSection>}
+      <SheetSection title={t("routeDetailsTitle")}>
+        <RouteComparison rec={rec} budget={extra} />
+        {lowerExposure}
+      </SheetSection>
       <SheetSection title={copy.advanced}>
         <div className="space-y-4">
+          <DetourBudgetSlider value={extra} onChange={setExtra} />
           <TravelModeToggle value={form.mode} onChange={onMode} />
           <DepartureTimePicker value={form.departureHour} onChange={onHour} />
           <p className="text-xs leading-relaxed text-text-secondary">{t("timeCaveat")}</p>

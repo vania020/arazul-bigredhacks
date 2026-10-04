@@ -80,7 +80,10 @@ const mount = () =>
 async function search() {
   fireEvent.click(screen.getByRole("button", { name: /Try a demo trip/ }));
   fireEvent.click(screen.getByRole("button", { name: /Find routes/ }));
-  return screen.findByRole("radiogroup", { name: "Routes" });
+  const chips = await screen.findByRole("radiogroup", { name: "Routes" });
+  fireEvent.click(screen.getByText("More route details"));
+  fireEvent.click(screen.getByText("Advanced options"));
+  return chips;
 }
 const option = () => screen.queryByRole("region", { name: "Lower-exposure option" });
 
@@ -124,9 +127,21 @@ describe("lower-exposure option outside the time budget", () => {
     expect(screen.getByLabelText("Maximum extra travel time")).toHaveValue("9");
     // Selection settles after the recommendation recomputes for the new allowance.
     const chosen = await within(chips).findByRole("radio", { name: /29 min/ });
-    await waitFor(() => expect(chosen).toHaveAttribute("aria-checked", "true"), { timeout: 5000 });
+    await waitFor(
+      () =>
+        expect(
+          within(screen.getByRole("radiogroup", { name: "Routes" })).getByRole("radio", {
+            name: /29 min/,
+          }),
+        ).toHaveAttribute("aria-checked", "true"),
+      { timeout: 5000 },
+    );
     // Within the new +9 allowance the normal policy recommends it (29% ≥ 15%).
-    expect(chosen).toHaveTextContent(/Recommended/i);
+    expect(
+      within(screen.getByRole("radiogroup", { name: "Routes" })).getByRole("radio", {
+        name: /29 min/,
+      }),
+    ).toHaveTextContent(/Recommended/i);
     expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
   });
 

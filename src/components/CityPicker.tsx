@@ -59,10 +59,6 @@ export function CityPicker({
           {t("sourceDetails")}
         </button>
       </div>
-      <p className="px-1 text-xs leading-relaxed text-text-secondary">
-        {t(city.datasetUrl ? "coverageArea" : "routingArea", { region: city.region })} ·{" "}
-        {t("cityTime", { zone: city.timeZone })}
-      </p>
       {notes.map((n) => (
         <p
           key={n.text}

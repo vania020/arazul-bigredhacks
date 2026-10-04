@@ -1,3 +1,4 @@
+import { Macaw } from "./brand/Macaw";
 import type { ReactNode } from "react";
 import { useI18n } from "@/i18n";
 import { navigationCopy } from "@/i18n/navigation";
@@ -49,31 +50,6 @@ const ICONS = {
   list: icon(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />),
 };
 
-function Metric({
-  icon: i,
-  tone = "neutral",
-  wide = false,
-  children,
-}: {
-  icon: ReactNode;
-  tone?: "good" | "neutral";
-  wide?: boolean;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className={`flex min-w-0 items-center gap-2.5 rounded-xl bg-surface px-3 py-2.5 ${wide ? "@min-[19rem]:col-span-2" : ""}`}
-    >
-      <span className={`shrink-0 ${tone === "good" ? "text-success" : "text-primary"}`}>{i}</span>
-      <span
-        className={`min-w-0 text-xs font-semibold leading-snug ${tone === "good" ? "text-success" : "text-foreground"}`}
-      >
-        {children}
-      </span>
-    </div>
-  );
-}
-
 /**
  * The selected route, reference-style: big time + badge, distance, existing exposure/time
  * metrics as tiles, then the primary action. Every number comes from the scored route.
@@ -92,7 +68,7 @@ export function RouteSummary({
   fastest: ScoredRoute;
   comparisonAvailable: boolean;
   onStart: () => void;
-  onOtherOptions: () => void;
+  onOtherOptions?: (() => void) | undefined;
   onWhy?: (() => void) | undefined;
 }) {
   const { t, lang } = useI18n();
@@ -103,8 +79,11 @@ export function RouteSummary({
   return (
     <section
       aria-label={ui.selectedRoute}
-      className="fade-up @container rounded-3xl border bg-card p-4 shadow-soft"
+      className="relative fade-up @container rounded-3xl border bg-card p-4 shadow-soft"
     >
+      {kind === "recommended" && (
+        <Macaw className="absolute right-4 top-14 h-20 w-20" label="Ara" />
+      )}
       <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div>
           <p className="whitespace-nowrap font-display text-4xl font-extrabold leading-none tracking-tight text-foreground">
@@ -115,7 +94,7 @@ export function RouteSummary({
           </p>
         </div>
         <span
-          className={`mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${kind === "recommended" ? "bg-secondary text-primary" : "bg-muted text-text-secondary"}`}
+          className={`mt-1 inline-flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${kind === "recommended" ? "bg-success-soft text-success" : "bg-muted text-text-secondary"}`}
         >
           {kind === "recommended" && (
             <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden>
@@ -126,22 +105,30 @@ export function RouteSummary({
         </span>
       </div>
 
-      <div className="mt-3 grid grid-cols-1 gap-1.5 @min-[19rem]:grid-cols-2">
-        {!comparisonAvailable ? (
-          <Metric icon={ICONS.info}>{t("noExposure")}</Metric>
-        ) : isFastest ? null : (
-          <Metric icon={ICONS.down} tone={pct > 0 ? "good" : "neutral"}>
-            {pct > 0
-              ? t("reducedBy", { pct })
-              : t("elevatedKm", { km: fmtLen(route.hotspotMeters) })}
-          </Metric>
-        )}
-        <Metric icon={ICONS.clock} wide={isFastest && comparisonAvailable}>
-          {isFastest ? t("fastestOption") : t("vsFastest", { min: Math.max(0, extra) })}
-        </Metric>
+      <p
+        className={`mt-4 text-sm leading-relaxed text-text-secondary ${kind === "recommended" ? "pr-20" : ""}`}
+      >
+        {!comparisonAvailable
+          ? t("noExposure")
+          : !isFastest && pct > 0
+            ? t("routeSimpleLower")
+            : isFastest
+              ? t("routeSimpleFast")
+              : t("routeSimpleAlternative")}
+      </p>
+      {comparisonAvailable && pct > 0 && (
+        <p className="mt-3 rounded-2xl bg-success-soft px-4 py-3 text-sm font-bold text-success">
+          {t("reducedBy", { pct })}
+        </p>
+      )}
+      <div className="mt-3 flex items-center gap-2 rounded-xl bg-surface px-3 py-2 text-sm font-semibold text-foreground">
+        {ICONS.clock}
+        {isFastest ? t("fastestOption") : t("vsFastest", { min: Math.max(0, extra) })}
       </div>
 
-      <div className="mt-4 grid grid-cols-1 gap-2 @min-[19rem]:grid-cols-[1.35fr_1fr]">
+      <div
+        className={`mt-4 grid grid-cols-1 gap-2 ${onOtherOptions ? "@min-[19rem]:grid-cols-[1.35fr_1fr]" : ""}`}
+      >
         <Button
           onClick={onStart}
           className="h-14 min-w-0 rounded-2xl px-3 font-display text-base font-bold shadow-float hover:bg-deep"
@@ -149,22 +136,17 @@ export function RouteSummary({
           {ICONS.nav}
           {nav.start}
         </Button>
-        <Button
-          variant="outline"
-          onClick={onOtherOptions}
-          className="h-14 min-w-0 rounded-2xl px-2 text-sm font-semibold text-primary hover:bg-secondary"
-        >
-          {ICONS.list}
-          {ui.otherOptions}
-        </Button>
+        {onOtherOptions && (
+          <Button
+            variant="outline"
+            onClick={onOtherOptions}
+            className="h-14 min-w-0 rounded-2xl px-2 text-sm font-semibold text-primary hover:bg-secondary"
+          >
+            {ICONS.list}
+            {ui.otherOptions}
+          </Button>
+        )}
       </div>
-      {comparisonAvailable && (isFastest || pct > 0) && (
-        <div className="mt-2">
-          <Metric icon={ICONS.segment}>
-            {t("elevatedKm", { km: fmtLen(route.hotspotMeters) })}
-          </Metric>
-        </div>
-      )}
       <div className="mt-2 flex flex-col items-start gap-1">
         {onWhy && (
           <button
@@ -176,7 +158,6 @@ export function RouteSummary({
             {t("whyRoute")}
           </button>
         )}
-        <p className="text-[11px] leading-relaxed text-text-secondary">{nav.startHint}</p>
       </div>
     </section>
   );
@@ -207,8 +188,10 @@ export function RoutePeek({
   const exposure = !comparisonAvailable
     ? t("noExposure")
     : good
-      ? t("reducedBy", { pct })
-      : t("elevatedKm", { km: fmtLen(route.hotspotMeters) });
+      ? t("routeSimpleLower")
+      : isFastest
+        ? t("fastestOption")
+        : t("routeSimpleAlternative");
   return (
     <div className="flex items-center gap-3">
       <div className="min-w-0 flex-1">

@@ -53,14 +53,10 @@ describe("map point picker", () => {
     f.click({ lat: 40.7, lng: -73.9 });
     expect(f.onPick).toHaveBeenCalledExactlyOnceWith({ lat: 40.7, lng: -73.9 });
   });
-  it("provides a keyboard-accessible map center selection", () => {
-    const f = fixture();
-    const button = screen.getByRole("button", { name: "Use map center" });
-    button.focus();
-    expect(button).toHaveFocus();
-    fireEvent.click(button);
-    expect(f.onPick).toHaveBeenCalledExactlyOnceWith(f.center);
-    expect(f.onCancel).not.toHaveBeenCalled();
+  it("offers direct placement without a center target", () => {
+    fixture();
+    expect(screen.queryByRole("button", { name: "Use map center" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Cancel" })).toBeInTheDocument();
   });
   it("cancels with Escape, but ignores unrelated keys", () => {
     const f = fixture();

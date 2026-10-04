@@ -14,8 +14,8 @@ export function RouteEndpoints({
   showStart = true,
 }: {
   map: google.maps.Map;
-  start: LatLng;
-  end: LatLng;
+  start: LatLng | undefined;
+  end: LatLng | undefined;
   startLabel: string;
   endLabel: string;
   startAddress: string;
@@ -25,10 +25,12 @@ export function RouteEndpoints({
 }) {
   useEffect(() => {
     const markers = [
-      ...(showStart
+      ...(showStart && start
         ? [{ point: start, letter: "A", label: startLabel, type: "start", address: startAddress }]
         : []),
-      { point: end, letter: "B", label: endLabel, type: "end", address: endAddress },
+      ...(end
+        ? [{ point: end, letter: "B", label: endLabel, type: "end", address: endAddress }]
+        : []),
     ].map(({ point, letter, label, type, address }) => {
       class Endpoint extends google.maps.OverlayView {
         element = document.createElement("div");

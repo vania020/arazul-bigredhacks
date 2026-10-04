@@ -16,6 +16,7 @@ interface Props {
   onPick?: (() => void) | undefined;
   /** "inline": a row inside a shared trip card (visually hidden label, icon actions). */
   variant?: "field" | "inline";
+  showPickLabel?: boolean;
 }
 
 interface Suggestion {
@@ -34,6 +35,7 @@ export function LocationSearch({
   allowCurrent,
   onPick,
   variant = "field",
+  showPickLabel = false,
 }: Props) {
   const inline = variant === "inline";
   const { t, lang } = useI18n();
@@ -189,14 +191,14 @@ export function LocationSearch({
         onPick();
       }}
       className={
-        inline
+        inline && !showPickLabel
           ? "grid h-9 w-9 shrink-0 place-items-center rounded-full text-text-secondary hover:bg-secondary hover:text-primary disabled:opacity-40"
-          : "mt-1 min-h-9 text-xs font-semibold text-primary underline disabled:opacity-40"
+          : "ml-10 min-h-7 leading-4 text-xs font-semibold text-primary underline disabled:opacity-40"
       }
       aria-label={`${planningCopy[lang].pick}: ${t(kind)}`}
       title={planningCopy[lang].pick}
     >
-      {inline ? (
+      {inline && !showPickLabel ? (
         <svg
           viewBox="0 0 24 24"
           className="h-5 w-5"
@@ -245,7 +247,7 @@ export function LocationSearch({
           aria-controls={listId}
           aria-autocomplete="list"
           aria-label={t(kind)}
-          placeholder={t(kind)}
+          placeholder={t(kind === "origin" ? "chooseStart" : "chooseDestination")}
           value={value.label}
           autoComplete="off"
           onChange={(e) => {
@@ -271,9 +273,9 @@ export function LocationSearch({
             }
             if (e.key === "Escape") setOpen(false);
           }}
-          className={`h-12 min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground ${inline ? "text-[15px] font-medium text-foreground" : "text-[15px]"}`}
+          className={`${showPickLabel ? "h-10" : "h-12"} min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground ${inline ? "text-[15px] font-medium text-foreground" : "text-[15px]"}`}
         />
-        {inline && pickButton}
+        {inline && !showPickLabel && pickButton}
         {allowCurrent && (
           <Button
             type="button"
@@ -305,7 +307,7 @@ export function LocationSearch({
           </Button>
         )}
       </div>
-      {!inline && pickButton}
+      {(!inline || showPickLabel) && pickButton}
       {open && items.length > 0 && (
         <ul
           id={listId}
