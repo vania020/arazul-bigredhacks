@@ -1,3 +1,4 @@
+import { ShieldCheck, Clock3 } from "lucide-react";
 import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import { LocationSearch } from "@/components/LocationSearch";
@@ -34,52 +35,57 @@ export function TripCard({
 }: Pick<Props, "form" | "setForm" | "mapsReady" | "onPick">) {
   const { t } = useI18n();
   return (
-    <div className="flex items-center gap-2">
-      <div className="relative min-w-0 flex-1 rounded-2xl border bg-card p-1.5 shadow-soft">
-        <span
-          aria-hidden
-          className="pointer-events-none absolute left-[22px] top-[44px] h-[22px] border-l-2 border-dotted border-primary/50"
-        />
-        <LocationSearch
-          id="origin"
-          kind="origin"
-          variant="inline"
-          value={form.origin}
-          onChange={(origin) => setForm({ ...form, origin })}
-          mapsReady={mapsReady}
-          onPick={onPick ? () => onPick("origin") : undefined}
-          allowCurrent
-        />
-        <div className="ml-10 mr-2 border-t" aria-hidden />
-        <LocationSearch
-          id="destination"
-          kind="destination"
-          variant="inline"
-          value={form.destination}
-          onChange={(destination) => setForm({ ...form, destination })}
-          mapsReady={mapsReady}
-          onPick={onPick ? () => onPick("destination") : undefined}
-        />
-      </div>
-      <button
-        type="button"
-        aria-label={t("swap")}
-        title={t("swap")}
-        className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border bg-card text-primary shadow-soft hover:bg-secondary"
-        onClick={() => setForm({ ...form, origin: form.destination, destination: form.origin })}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          className="h-5 w-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          aria-hidden
+    <section className="rounded-3xl border bg-card p-4 shadow-soft" aria-label={t("planRoute")}>
+      <h2 className="mb-3 font-display text-xl font-extrabold text-deep">{t("planRoute")}</h2>
+      <div className="flex items-center gap-2">
+        <div className="relative min-w-0 flex-1 rounded-2xl border bg-background p-1.5">
+          <span
+            aria-hidden
+            className="pointer-events-none absolute left-[22px] top-[36px] h-[44px] border-l-2 border-dotted border-primary/50"
+          />
+          <LocationSearch
+            id="origin"
+            kind="origin"
+            variant="inline"
+            showPickLabel
+            value={form.origin}
+            onChange={(origin) => setForm({ ...form, origin })}
+            mapsReady={mapsReady}
+            onPick={onPick ? () => onPick("origin") : undefined}
+            allowCurrent
+          />
+          <div className="ml-10 mr-2 border-t" aria-hidden />
+          <LocationSearch
+            id="destination"
+            kind="destination"
+            variant="inline"
+            showPickLabel
+            value={form.destination}
+            onChange={(destination) => setForm({ ...form, destination })}
+            mapsReady={mapsReady}
+            onPick={onPick ? () => onPick("destination") : undefined}
+          />
+        </div>
+        <button
+          type="button"
+          aria-label={t("swap")}
+          title={t("swap")}
+          className="grid h-10 w-10 shrink-0 place-items-center rounded-full border bg-secondary text-primary shadow-soft hover:bg-secondary"
+          onClick={() => setForm({ ...form, origin: form.destination, destination: form.origin })}
         >
-          <path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4m0 16-3.5-3.5M16 20l3.5-3.5" />
-        </svg>
-      </button>
-    </div>
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            aria-hidden
+          >
+            <path d="M8 4v16M8 4 4.5 7.5M8 4l3.5 3.5M16 20V4m0 16-3.5-3.5M16 20l3.5-3.5" />
+          </svg>
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -100,7 +106,7 @@ export function SearchPage({
   const panel = layout === "panel";
   return (
     <form
-      className="space-y-4"
+      className="space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
@@ -118,6 +124,10 @@ export function SearchPage({
       {panel && (
         <div className="rounded-2xl border bg-card px-4 py-3 shadow-soft">
           <DetourBudgetSlider value={extra} onChange={setExtra} compact />
+          <p className="flex items-start gap-2 text-xs leading-relaxed text-text-secondary">
+            <Clock3 aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {t("budgetHint", { min: extra })}
+          </p>
         </div>
       )}
 
@@ -126,21 +136,43 @@ export function SearchPage({
           {error}
         </p>
       )}
-      <div className="space-y-1">
+      <div className="relative space-y-1">
         <Button
           type="submit"
-          className="h-14 w-full rounded-2xl font-display text-base font-bold shadow-float hover:bg-deep"
+          className="h-12 w-full rounded-full pr-16 font-display text-base font-bold shadow-float hover:bg-deep"
         >
           {t("findRoutes")} <span aria-hidden>→</span>
         </Button>
-        <Button
+      </div>
+      <div className="relative pt-1">
+        <img
+          src="/ara-sunny-mound.png"
+          alt=""
+          aria-hidden
+          draggable={false}
+          className="pointer-events-none absolute -right-2 -top-16 z-10 h-24 w-24 object-contain"
+        />
+        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success-soft via-success-soft to-card px-4 py-4 shadow-soft">
+          <div aria-hidden className="absolute -bottom-5 -left-3 flex items-end gap-1 opacity-30">
+            <span className="h-10 w-7 -rotate-45 rounded-full bg-success" />
+            <span className="h-8 w-6 rotate-12 rounded-full bg-success" />
+            <span className="h-6 w-8 rotate-45 rounded-full bg-success" />
+          </div>
+          <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-success text-white shadow-sm">
+            <ShieldCheck aria-hidden className="h-7 w-7" />
+          </span>
+          <div className="relative min-w-0 flex-1 pr-3">
+            <p className="text-sm font-bold leading-snug text-deep">{t("routeHelpTitle")}</p>
+            <p className="mt-1 text-xs leading-relaxed text-text-secondary">{t("routeHelpBody")}</p>
+          </div>
+        </div>
+        <button
           type="button"
-          variant="ghost"
           onClick={onDemo}
-          className="h-11 w-full rounded-2xl text-sm font-semibold text-primary hover:bg-secondary"
+          className="mx-auto mt-1 block min-h-11 rounded-lg px-3 text-xs font-medium text-text-secondary underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
         >
-          {t("demoTrip")} <span aria-hidden>↗</span>
-        </Button>
+          {t("demoTrip")}
+        </button>
       </div>
       <SheetSection title={panel ? copy.advanced : `${copy.advanced} · ${extra} ${copy.extra}`}>
         <div className="space-y-4">

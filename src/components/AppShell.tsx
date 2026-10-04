@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "@/i18n";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { EXPOSURE_CONFIG as C } from "@/config/exposureConfig";
+import { locationLabel } from "@/services/location-label";
 import { getApiKey } from "@/services/googleMaps";
 import { loadRiskGrid } from "@/services/riskDataService";
 import {
@@ -25,7 +26,6 @@ import { RouteEndpoints } from "@/map/RouteEndpoints";
 import { ExposureLayer, type ExposureLayerStatus } from "@/map/ExposureLayer";
 import { BrandHeader } from "./BrandHeader";
 import { CityPicker } from "./CityPicker";
-import { AraBird } from "./AraBird";
 import { ExposureLegend } from "./ExposureLegend";
 import { BottomSheet, type Snap } from "./BottomSheet";
 import { RouteExplanationSheet } from "./RouteExplanationSheet";
@@ -38,12 +38,11 @@ import type { CandidateRoute, SearchRequest } from "@/types/route";
 
 import { LowerExposureOption } from "./LowerExposureOption";
 import { outsideBudgetOptions, type OutsideBudgetOption } from "@/services/outsideBudget";
-import { TripTools } from "./TripTools";
 import { RoutePeek } from "./RouteSummary";
 import { routeOptions } from "./routeFacts";
 import { heatmapCopy } from "@/i18n/heatmap";
 import { planningCopy } from "@/i18n/planning";
-import { usePublishedActivity, PublishedActivity, ActivityLayer } from "@/activity";
+import { usePublishedActivity, ActivityLayer } from "@/activity";
 import { MapPointPicker } from "@/map/MapPointPicker";
 import type { LatLng, ScoredRoute } from "@/types/route";
 import { useCity } from "@/context/CityContext";
@@ -94,9 +93,14 @@ export function AppShell() {
   const [step, setStep] = useState<number | null>(null);
   const [error, setError] = useState<{ msg: string; dev?: string } | null>(null);
   const [selectedId, setSelectedId] = useState("");
+  const [routeTagVisible, setRouteTagVisible] = useState(false);
+  const selectRoute = (id: string) => {
+    setSelectedId(id);
+    setRouteTagVisible(true);
+  };
   const [whyOpen, setWhyOpen] = useState(false);
   const [methOpen, setMethOpen] = useState(false);
-  const [layer, setLayer] = useState<"off" | "route" | "city">("off");
+  const [layer, setLayer] = useState<"off" | "route" | "city">("city");
   const [heatmapStatus, setHeatmapStatus] = useState<ExposureLayerStatus>("ready");
   const [ara, setAra] = useState<string | null>(null);
   const [celebrate, setCelebrate] = useState(0);
@@ -144,17 +148,26 @@ export function AppShell() {
   const pickPoint = useCallback(
     (point: LatLng) => {
       if (!picking) return;
+      const kind = picking;
       setForm((f) => ({
         ...f,
-        [picking]: {
-          label: `${copy.point} (${point.lat.toFixed(5)}, ${point.lng.toFixed(5)})`,
+        [kind]: {
+          label: kind === "origin" ? copy.selectedOrigin : copy.selectedDestination,
           latLng: point,
         },
       }));
       setPicking(null);
       setSnap("half");
+      void locationLabel(point).then((label) => {
+        if (!label || !active.current) return;
+        setForm((f) =>
+          f[kind].latLng?.lat === point.lat && f[kind].latLng?.lng === point.lng
+            ? { ...f, [kind]: { label, latLng: point } }
+            : f,
+        );
+      });
     },
-    [picking, copy.point],
+    [picking, copy.selectedOrigin, copy.selectedDestination],
   );
 
   useEffect(() => {
@@ -207,7 +220,7 @@ export function AppShell() {
   // the route is selected; it is then an ordinary eligible candidate for navigation.
   const chooseOutsideBudgetRoute = (option: OutsideBudgetOption) => {
     setExtra(Math.min(C.extraTime.max, Math.max(extra, option.allowMin)));
-    setSelectedId(option.route.id);
+    selectRoute(option.route.id);
   };
 
   // Development only: explain every candidate's outcome (console table + window.__arazulRouteDebug).
@@ -323,6 +336,7 @@ export function AppShell() {
         setPlannedRequest(req);
         if (req.departureHour === null) setNowHour(currentHourIn(city.timeZone));
         setCandidates(list);
+        setRouteTagVisible(false);
         if (isMobile) setSnap("half");
       };
       if (cache.has(key)) {
@@ -454,24 +468,6 @@ export function AppShell() {
   const steps = [t("stepFinding"), t("stepComparing"), t("stepDetours")];
 
   const selected = rec?.eligible.find((r) => r.id === selectedId) ?? rec?.recommended;
-  const tripTools =
-    rec && selected && plannedRequest ? (
-      <TripTools
-        trip={{
-          version: 1,
-          cityId: city.id,
-          origin: plannedRequest.origin,
-          destination: plannedRequest.destination,
-          mode: searchMode,
-          hour: form.departureHour,
-          extraMinutes: extra,
-        }}
-        route={selected}
-        grid={grid}
-        comparisonAvailable={hasExposureComparison(rec)}
-      />
-    ) : null;
-
   const resultsForm: SearchRequest = {
     ...(plannedRequest ?? form),
     mode: searchMode,
@@ -562,7 +558,7 @@ export function AppShell() {
           form={resultsForm}
           layout={isMobile ? "sheet" : "panel"}
           selectedId={selectedId}
-          onSelect={setSelectedId}
+          onSelect={selectRoute}
           onStart={onStart}
           onOpenExternal={onOpenExternal}
           onWhy={() => setWhyOpen(true)}
@@ -572,7 +568,6 @@ export function AppShell() {
           extra={extra}
           setExtra={setExtra}
           feedback={feedback}
-          tripTools={tripTools}
           onExpand={isMobile ? () => setSnap("expanded") : undefined}
           lowerExposure={
             outside.options.length ? (
@@ -599,14 +594,6 @@ export function AppShell() {
         />
       )}
       {rec && step === null && <div className="mt-4">{cityPicker}</div>}
-      <div className="mt-4">
-        <PublishedActivity
-          state={activity}
-          enabled={activityEnabled}
-          onToggle={() => setActivityEnabled((v) => !v)}
-          language={lang}
-        />
-      </div>
       {error && step === null && (
         <div role="alert" className="mt-4 rounded-2xl border bg-card p-4 shadow-soft">
           <p className="text-sm font-semibold text-deep">{error.msg}</p>
@@ -813,10 +800,22 @@ export function AppShell() {
             map={map}
             path={r.path}
             selected={selected?.id === r.id}
-            onClick={() => setSelectedId(r.id)}
+            kind={
+              r.id === rec.recommended.id
+                ? "recommended"
+                : r.id === rec.fastest.id
+                  ? "fastest"
+                  : "alternative"
+            }
+            label={
+              routeTagVisible && selected?.id === r.id
+                ? `${Math.max(1, Math.round(r.durationSec / 60))} ${t("min")} \u00b7 ${t(r.id === rec.recommended.id ? "recommended" : r.id === rec.fastest.id ? "fastest" : "alternative")}`
+                : undefined
+            }
+            onClick={() => selectRoute(r.id)}
           />
         ))}
-      {map && routeStart && routeEnd && !navTrip && (
+      {map && (routeStart || routeEnd) && !navTrip && (
         <RouteEndpoints
           map={map}
           start={routeStart}
@@ -859,7 +858,7 @@ export function AppShell() {
           {rec && step === null ? (
             <>
               <TripHeader floating form={resultsForm} onBack={goBack} />
-              <RouteSwitcher rec={rec} selectedId={selectedId} onSelect={setSelectedId} />
+              <RouteSwitcher rec={rec} selectedId={selectedId} onSelect={selectRoute} />
             </>
           ) : (
             <form
@@ -923,14 +922,6 @@ export function AppShell() {
             ) : (
               <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-6 pt-4">{panel}</div>
             )}
-            {!navTrip && (
-              <AraBird
-                message={ara}
-                celebrate={celebrate}
-                working={step !== null}
-                className="shrink-0 border-t bg-background px-4 py-3"
-              />
-            )}
           </aside>
         )}
         <div key="map" className="relative min-w-0 flex-1">
@@ -947,16 +938,6 @@ export function AppShell() {
           >
             {panel}
           </BottomSheet>
-        )}
-        {isMobile && !navTrip && (
-          <AraBird
-            key="ara"
-            message={ara}
-            celebrate={celebrate}
-            working={step !== null}
-            className="absolute left-3 right-3 z-10 max-w-sm"
-            style={{ bottom: sheetH + 8 }}
-          />
         )}
       </div>
       {rec && (

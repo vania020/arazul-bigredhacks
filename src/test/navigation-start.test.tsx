@@ -46,6 +46,7 @@ vi.mock("@/map/MapView", () => ({
     return <div data-testid="map" />;
   },
 }));
+vi.mock("@/map/ExposureLayer", () => ({ ExposureLayer: () => null }));
 vi.mock("@/map/RoutePolyline", () => ({ RoutePolyline: () => null }));
 vi.mock("@/map/RouteEndpoints", () => ({ RouteEndpoints: () => null }));
 vi.mock("@/map/LocationMarker", () => ({ createLocationMarker: () => mocks.marker }));
@@ -252,6 +253,8 @@ describe("explicitly chosen lower-exposure route", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: /Try a demo trip/ }));
     fireEvent.click(screen.getByRole("button", { name: /Find routes/ }));
+    await screen.findByRole("button", { name: "Start navigation" });
+    fireEvent.click(screen.getByText("More route details"));
     const card = await screen.findByRole("region", { name: "Lower-exposure option" });
     expect(card).toHaveTextContent("+9 min vs fastest");
     fireEvent.click(within(card).getByRole("button", { name: /Use this route/ }));

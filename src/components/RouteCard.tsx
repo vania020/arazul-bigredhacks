@@ -1,3 +1,4 @@
+import { Clock3, Route, ShieldCheck, ChevronRight } from "lucide-react";
 import { useI18n } from "@/i18n";
 import type { ScoredRoute } from "@/types/route";
 import { routeFacts, useKindLabel, type RouteKind } from "./routeFacts";
@@ -35,8 +36,16 @@ export function RouteCard({
     >
       <span
         aria-hidden
-        className={`h-11 w-1.5 shrink-0 rounded-full ${selected ? "bg-route-recommended" : "bg-route-fastest/60"}`}
-      />
+        className={`grid h-11 w-11 shrink-0 place-items-center rounded-full ${kind === "recommended" ? "bg-success-soft text-success" : kind === "fastest" ? "bg-secondary text-primary" : "bg-muted text-text-secondary"}`}
+      >
+        {kind === "recommended" ? (
+          <ShieldCheck className="h-5 w-5" />
+        ) : kind === "fastest" ? (
+          <Clock3 className="h-5 w-5" />
+        ) : (
+          <Route className="h-5 w-5" />
+        )}
+      </span>
       <span className="min-w-0 flex-1">
         <span className="flex flex-wrap items-baseline gap-x-2">
           <span className="font-display text-xl font-extrabold text-foreground">
@@ -55,9 +64,9 @@ export function RouteCard({
           {isFastest
             ? t("fastestOption")
             : comparisonAvailable && pct > 0
-              ? t("reducedBy", { pct })
+              ? t("routeSimpleLower")
               : comparisonAvailable
-                ? t("elevatedKm", { km: fmtLen(route.hotspotMeters) })
+                ? t("routeSimpleAlternative")
                 : t("noExposure")}
         </span>
       </span>
@@ -66,6 +75,7 @@ export function RouteCard({
       >
         {kindLabel(kind)}
       </span>
+      <ChevronRight aria-hidden className="h-4 w-4 shrink-0 text-text-secondary" />
     </button>
   );
 }

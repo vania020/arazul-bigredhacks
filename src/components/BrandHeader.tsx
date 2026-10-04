@@ -1,5 +1,44 @@
 import { useI18n, type Lang } from "@/i18n";
 
+const languageNames = { en: "English", pt: "Portugu\u00eas", es: "Espa\u00f1ol" };
+function LanguageFlag({ lang }: { lang: Lang }) {
+  return (
+    <svg viewBox="0 0 30 20" className="h-4 w-6 rounded-sm overflow-hidden" aria-hidden="true">
+      {lang === "en" ? (
+        <>
+          <rect width="30" height="20" fill="#fff" />
+          {Array.from({ length: 7 }, (_, i) => (
+            <rect key={i} width="30" y={(i * 40) / 13} height={20 / 13} fill="#b22234" />
+          ))}
+          <rect width="12" height="11" fill="#3c3b6e" />
+          {Array.from({ length: 30 }, (_, i) => (
+            <circle
+              key={i}
+              cx={1 + (i % 6) * 2}
+              cy={1 + Math.floor(i / 6) * 2}
+              r=".4"
+              fill="#fff"
+            />
+          ))}
+        </>
+      ) : lang === "pt" ? (
+        <>
+          <rect width="30" height="20" fill="#009739" />
+          <path d="m15 2 12 8-12 8L3 10z" fill="#ffdf00" />
+          <circle cx="15" cy="10" r="5" fill="#012169" />
+          <path d="M10.3 8.5q5-.3 9.2 3" fill="none" stroke="#fff" />
+        </>
+      ) : (
+        <>
+          <rect width="30" height="20" fill="#aa151b" />
+          <rect y="5" width="30" height="10" fill="#f1bf00" />
+          <path d="M8 8h4v4q-2 2-4 0z" fill="#aa151b" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 export function ArazulLogo({ className = "h-9 w-9" }: { className?: string }) {
   return (
     <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
@@ -61,9 +100,11 @@ export function BrandHeader({
               key={l}
               onClick={() => setLang(l)}
               aria-pressed={lang === l}
-              className={`h-8 min-w-7 rounded-full px-1 uppercase min-[380px]:min-w-8 min-[380px]:px-1.5 transition-colors ${lang === l ? "bg-deep text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
+              aria-label={languageNames[l]}
+              title={languageNames[l]}
+              className={`flex items-center justify-center h-8 min-w-7 rounded-full px-1 uppercase min-[380px]:min-w-8 min-[380px]:px-1.5 transition-colors ${lang === l ? "bg-deep text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
             >
-              {l}
+              <LanguageFlag lang={l} />
             </button>
           ))}
         </div>

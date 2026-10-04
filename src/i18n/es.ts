@@ -1,6 +1,16 @@
 import type { Dict } from "./en";
 export const es: Dict = {
   tagline: "Compara rutas rápidas con menor exposición reportada.",
+  budgetHint: "Comparamos rutas de hasta {min} minutos más.",
+  routeHelpTitle: "Más contexto para tu viaje",
+  routeHelpBody: "Los reportes pasados te ayudan a comparar rutas.",
+  routeSimpleLower: "Pasa por zonas con menos reportes históricos.",
+  routeSimpleFast: "La opción más rápida entre las rutas revisadas.",
+  routeSimpleAlternative: "Otro camino a tu destino.",
+  routeDetailsTitle: "Más detalles de la ruta",
+  planRoute: "Planear una ruta",
+  chooseStart: "¿Desde dónde sales?",
+  chooseDestination: "¿A dónde vas?",
   origin: "¿Desde dónde sales?",
   destination: "¿A dónde vas?",
   useLocation: "Usar ubicación actual",

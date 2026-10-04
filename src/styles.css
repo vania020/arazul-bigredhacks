@@ -87,6 +87,8 @@
   --route-recommended: #1d6ff2;
   --route-fastest: #8796a8;
   --route-other: #b9c6d3;
+  --route-alternative: #e6a700;
+  --route-selected-glow: #64d98b;
   --route-halo: #ffffff;
   --exp-1: #ddf3ff;
   --exp-2: #8ed1fc;
@@ -100,20 +102,34 @@
 }
 
 @layer base {
-  * { border-color: var(--color-border); }
-  html, body { height: 100%; }
+  * {
+    border-color: var(--color-border);
+  }
+  html,
+  body {
+    height: 100%;
+  }
   body {
     background-color: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
   }
-  :focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
 }
 
-@utility shadow-soft { box-shadow: var(--shadow-soft); }
-@utility shadow-float { box-shadow: var(--shadow-float); }
-@utility shadow-card { box-shadow: var(--shadow-soft); }
+@utility shadow-soft {
+  box-shadow: var(--shadow-soft);
+}
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}
+@utility shadow-card {
+  box-shadow: var(--shadow-soft);
+}
 @utility glass {
   background: color-mix(in oklab, var(--card) 86%, transparent);
   backdrop-filter: blur(14px);
@@ -143,9 +159,21 @@
   font: 800 14px var(--font-display);
   box-shadow: var(--shadow-soft);
 }
-.route-endpoint-start .route-endpoint-badge { background: var(--primary); box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 22%, transparent), var(--shadow-soft); }
-.route-endpoint-end .route-endpoint-badge { background: var(--pin); }
-.route-endpoint-caption-open { max-width: 240px; white-space: normal; text-align: center; font-weight: 600 !important; }
+.route-endpoint-start .route-endpoint-badge {
+  background: var(--primary);
+  box-shadow:
+    0 0 0 4px color-mix(in oklab, var(--primary) 22%, transparent),
+    var(--shadow-soft);
+}
+.route-endpoint-end .route-endpoint-badge {
+  background: var(--pin);
+}
+.route-endpoint-caption-open {
+  max-width: 240px;
+  white-space: normal;
+  text-align: center;
+  font-weight: 600 !important;
+}
 .route-endpoint-caption {
   border: 1px solid var(--border);
   border-radius: 999px;
@@ -212,17 +240,81 @@
   background: var(--muted-foreground);
   border-color: var(--card);
 }
-@keyframes nav-pulse { from { opacity: 0.7; transform: scale(1) } to { opacity: 0; transform: scale(2.4) } }
+@keyframes nav-pulse {
+  from {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.4);
+  }
+}
 
-@keyframes ara-flap { 0%,100% { transform: rotate(0) } 30% { transform: rotate(-14deg) } 60% { transform: rotate(6deg) } }
-@keyframes ara-bounce { 0%,100% { transform: translateY(0) } 40% { transform: translateY(-5px) } }
-@keyframes bubble-in { from { opacity: 0; transform: translateY(6px) scale(.96) } to { opacity: 1; transform: none } }
-@keyframes fade-up { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
-.ara-flap { transform-origin: 30% 30%; animation: ara-flap .9s ease-in-out 2; }
-.ara-bounce { animation: ara-bounce .9s ease-in-out 2; }
-.ara-working { animation: ara-bounce 1.2s ease-in-out infinite; }
-.bubble-in { animation: bubble-in .25s ease-out; }
-.fade-up { animation: fade-up .35s ease-out both; }
+@keyframes ara-flap {
+  0%,
+  100% {
+    transform: rotate(0);
+  }
+  30% {
+    transform: rotate(-14deg);
+  }
+  60% {
+    transform: rotate(6deg);
+  }
+}
+@keyframes ara-bounce {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-5px);
+  }
+}
+@keyframes bubble-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.ara-flap {
+  transform-origin: 30% 30%;
+  animation: ara-flap 0.9s ease-in-out 2;
+}
+.ara-bounce {
+  animation: ara-bounce 0.9s ease-in-out 2;
+}
+.ara-working {
+  animation: ara-bounce 1.2s ease-in-out infinite;
+}
+.bubble-in {
+  animation: bubble-in 0.25s ease-out;
+}
+.fade-up {
+  animation: fade-up 0.35s ease-out both;
+}
 @media (prefers-reduced-motion: reduce) {
-  .ara-flap, .ara-bounce, .ara-working, .bubble-in, .fade-up, .nav-location-dot::after { animation: none !important; }
+  .ara-flap,
+  .ara-bounce,
+  .ara-working,
+  .bubble-in,
+  .fade-up,
+  .nav-location-dot::after {
+    animation: none !important;
+  }
 }

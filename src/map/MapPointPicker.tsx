@@ -1,3 +1,4 @@
+import { Macaw } from "@/components/brand/Macaw";
 import { useEffect } from "react";
 import { useI18n } from "@/i18n";
 import { planningCopy } from "@/i18n/planning";
@@ -33,34 +34,21 @@ export function MapPointPicker({
   }, [map, onPick, onCancel]);
   return (
     <>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary bg-card/80 p-1 text-xl text-primary"
-      >
-        +
-      </div>
-      <div className="absolute left-3 right-16 top-3 z-10 max-w-sm rounded-xl border bg-card p-3 shadow-soft">
-        <p role="status" className="text-sm font-semibold">
-          {kind === "origin" ? c.pickOrigin : c.pickDestination}
-        </p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => {
-              const center = map.getCenter();
-              if (center) onPick(center.toJSON());
-            }}
-            className="min-h-11 rounded-lg bg-primary px-3 text-sm text-primary-foreground"
-          >
-            {c.center}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            className="min-h-11 rounded-lg border px-3 text-sm"
-          >
-            {c.cancel}
-          </button>
+      <div className="pointer-events-none absolute left-3 right-16 top-3 z-10 max-w-sm rounded-xl border bg-card p-3 shadow-soft flex items-start gap-2">
+        <Macaw className="h-16 w-16 shrink-0" label="Ara" />
+        <div className="min-w-0 flex-1">
+          <p role="status" className="text-sm font-semibold">
+            {kind === "origin" ? c.pickOrigin : c.pickDestination}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="pointer-events-auto min-h-11 rounded-lg border px-3 text-sm"
+            >
+              {c.cancel}
+            </button>
+          </div>
         </div>
       </div>
     </>

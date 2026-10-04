@@ -190,17 +190,10 @@ describe("departure time integration", () => {
     );
     expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
   });
-  it("keeps published activity off when the city changes", () => {
+  it("keeps the removed published activity card out of the sidebar across city changes", () => {
     mount();
-    fireEvent.click(screen.getByRole("button", { name: "Published activity" }));
-    expect(screen.getByRole("button", { name: "Published activity" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(screen.queryByRole("button", { name: "Published activity" })).not.toBeInTheDocument();
     selectCity("lima");
-    expect(screen.getByRole("button", { name: "Published activity" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    expect(screen.queryByRole("button", { name: "Published activity" })).not.toBeInTheDocument();
   });
 });
