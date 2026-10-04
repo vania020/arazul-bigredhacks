@@ -25,13 +25,22 @@ export function routeFacts(route: ScoredRoute, fastest: ScoredRoute) {
 
 /**
  * The route options shown to the user (unchanged selection: recommended, fastest, and up to two
- * other eligible routes with the selected one first) and the currently selected option.
+ * other eligible routes in a stable order) and the currently selected option.
  */
 export function routeOptions(rec: Recommendation, selectedId: string) {
   const others = rec.eligible
     .filter((r) => r.id !== rec.recommended.id && r.id !== rec.fastest.id)
-    .sort((a, b) => Number(b.id === selectedId) - Number(a.id === selectedId))
     .slice(0, 2);
+  // Keep an externally selected route available without moving the visible choices.
+  const selectedOther = rec.eligible.find((r) => r.id === selectedId);
+  if (
+    selectedOther &&
+    selectedOther.id !== rec.recommended.id &&
+    selectedOther.id !== rec.fastest.id &&
+    !others.some((r) => r.id === selectedId)
+  ) {
+    others.push(selectedOther);
+  }
   const same = rec.recommended.id === rec.fastest.id;
   const options: { route: ScoredRoute; kind: RouteKind }[] = [
     { route: rec.recommended, kind: "recommended" },

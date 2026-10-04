@@ -47,7 +47,6 @@ const ICONS = {
       <path d="M21 3 3 10.5l7.5 2.9L13.4 21z" />
     </svg>
   ),
-  list: icon(<path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />),
 };
 
 /**
@@ -60,7 +59,6 @@ export function RouteSummary({
   fastest,
   comparisonAvailable,
   onStart,
-  onOtherOptions,
   onWhy,
 }: {
   route: ScoredRoute;
@@ -68,7 +66,6 @@ export function RouteSummary({
   fastest: ScoredRoute;
   comparisonAvailable: boolean;
   onStart: () => void;
-  onOtherOptions?: (() => void) | undefined;
   onWhy?: (() => void) | undefined;
 }) {
   const { t, lang } = useI18n();
@@ -126,9 +123,7 @@ export function RouteSummary({
         {isFastest ? t("fastestOption") : t("vsFastest", { min: Math.max(0, extra) })}
       </div>
 
-      <div
-        className={`mt-4 grid grid-cols-1 gap-2 ${onOtherOptions ? "@min-[19rem]:grid-cols-[1.35fr_1fr]" : ""}`}
-      >
+      <div className="mt-4 grid grid-cols-1">
         <Button
           onClick={onStart}
           className="h-14 min-w-0 rounded-2xl px-3 font-display text-base font-bold shadow-float hover:bg-deep"
@@ -136,16 +131,6 @@ export function RouteSummary({
           {ICONS.nav}
           {nav.start}
         </Button>
-        {onOtherOptions && (
-          <Button
-            variant="outline"
-            onClick={onOtherOptions}
-            className="h-14 min-w-0 rounded-2xl px-2 text-sm font-semibold text-primary hover:bg-secondary"
-          >
-            {ICONS.list}
-            {ui.otherOptions}
-          </Button>
-        )}
       </div>
       <div className="mt-2 flex flex-col items-start gap-1">
         {onWhy && (
