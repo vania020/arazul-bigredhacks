@@ -34,9 +34,13 @@ import { heatmapCopy } from "@/i18n/heatmap";
 import { planningCopy } from "@/i18n/planning";
 import { usePublishedActivity, PublishedActivity, ActivityLayer } from "@/activity";
 import { MapPointPicker } from "@/map/MapPointPicker";
-import type { LatLng } from "@/types/route";
+import type { LatLng, ScoredRoute } from "@/types/route";
 import { CITIES } from "@/config/cities";
 import { useCity } from "@/context/CityContext";
+import { NavigationSession } from "./navigation/NavigationSession";
+import type { NavTrip } from "@/navigation/useNavigation";
+import { routeLanguage, unitsForCountry } from "@/navigation/format";
+import { primeSpeech } from "@/navigation/voice";
 
 type MapState = "loading" | "ready" | "missing" | "error";
 const cache = new Map<string, CandidateRoute[]>();
@@ -90,6 +94,10 @@ export function AppShell() {
   const [nowHour, setNowHour] = useState(12);
   const [picking, setPicking] = useState<"origin" | "destination" | null>(null);
   const [sharedLoaded, setSharedLoaded] = useState(false);
+  // In-app navigation: the Arazul route the user started, and the route currently followed
+  // (differs from navTrip.route only after a preference-preserving reroute).
+  const [navTrip, setNavTrip] = useState<NavTrip | null>(null);
+  const [navRoute, setNavRoute] = useState<ScoredRoute | null>(null);
   useEffect(() => {
     if (!incomingTrip || incomingTrip.cityId !== city.id) return;
     const endpoint = (v: SearchRequest["origin"]) => ({
@@ -202,7 +210,7 @@ export function AppShell() {
   }, [rec]);
 
   // Fit map to routes
-  useEffect(() => {
+  const fitRoutes = () => {
     if (!map || !rec) return;
     const b = new google.maps.LatLngBounds();
     rec.eligible.forEach((r) => r.path.forEach((p) => b.extend(p)));
@@ -210,6 +218,9 @@ export function AppShell() {
       ? { top: 95, left: 48, right: 48, bottom: Math.round(window.innerHeight * 0.58) }
       : { top: 100, left: 90, right: 90, bottom: 90 };
     map.fitBounds(b, padding);
+  };
+  useEffect(() => {
+    fitRoutes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, candidates]);
 
@@ -239,6 +250,7 @@ export function AppShell() {
         req.destination.latLng ?? req.destination.label,
         req.mode,
         req.departureHour,
+        lang,
       ]);
       const finish = (list: CandidateRoute[]) => {
         if (cancelled()) return;
@@ -257,12 +269,14 @@ export function AppShell() {
       try {
         setStep(0);
         setAra(null);
+        const language = routeLanguage(lang);
         const base = await computeRoutes({
           origin: req.origin,
           destination: req.destination,
           mode: req.mode,
           departure,
           alternatives: true,
+          language,
         });
         if (cancelled()) return;
         if (!base.length) throw new Error("ZERO_RESULTS");
@@ -280,7 +294,13 @@ export function AppShell() {
           if (g && base.every((route) => scoreRoute(route, g, req.mode, h).coverage === "covered"))
             detours = await generateDetours(
               fastest,
-              { origin: req.origin, destination: req.destination, mode: req.mode, departure },
+              {
+                origin: req.origin,
+                destination: req.destination,
+                mode: req.mode,
+                departure,
+                language,
+              },
               fastestC.durationSec + C.extraTime.max * 60,
             );
         } catch {
@@ -298,7 +318,7 @@ export function AppShell() {
         setAra(t("araNoAlt"));
       }
     },
-    [mapState, isMobile, t, city],
+    [mapState, isMobile, t, lang, city],
   );
 
   const onDemo = () => setForm({ ...city.demo, mode: city.defaultMode, departureHour: 22 });
@@ -324,7 +344,32 @@ export function AppShell() {
     setForm(next);
     if (candidates) runSearch(next, "mode");
   };
-  const onStart = (routeId: string) => {
+  // Navigates exactly the selected Arazul route; its kind becomes the reroute preference.
+  const onStart = (routeId: string, kind: "recommended" | "fastest" | "alternative") => {
+    const r = rec?.eligible.find((x) => x.id === routeId);
+    if (!r || !rec || !plannedRequest || !map) return;
+    primeSpeech(); // must run inside the click gesture for mobile Safari
+    setNavRoute(r);
+    setNavTrip({
+      route: r,
+      rec,
+      preference: kind === "alternative" ? "custom" : kind,
+      destination: plannedRequest.destination,
+      mode: searchMode,
+      extraMin: extra,
+      hour, // the hour this recommendation was scored for
+    });
+    setWhyOpen(false);
+    setPicking(null);
+    setAra(null);
+  };
+  const onEndNavigation = () => {
+    setNavTrip(null);
+    setNavRoute(null);
+    if (isMobile) setSnap("half");
+    fitRoutes();
+  };
+  const onOpenExternal = (routeId: string) => {
     const r = rec?.eligible.find((x) => x.id === routeId);
     if (!r || !plannedRequest) return;
     const enc = (l: SearchRequest["origin"]) =>
@@ -453,6 +498,7 @@ export function AppShell() {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onStart={onStart}
+          onOpenExternal={onOpenExternal}
           onWhy={() => setWhyOpen(true)}
           onBack={() => {
             setCandidates(null);
@@ -563,13 +609,30 @@ export function AppShell() {
           grid={grid}
           mode={rec ? searchMode : form.mode}
           hour={hour}
-          route={selected?.path}
+          route={navRoute?.path ?? selected?.path}
           scope={rec ? layer : "city"}
           onStatus={setHeatmapStatus}
         />
       )}
+      {map && navTrip && (
+        <NavigationSession
+          map={map}
+          trip={navTrip}
+          grid={grid}
+          units={unitsForCountry(city.countryCode)}
+          isMobile={isMobile}
+          onRouteChange={setNavRoute}
+          exposureLayer={{
+            available: canShowLayer,
+            on: canShowLayer && layer !== "off",
+            toggle: () => setLayer((l) => (l === "off" ? "route" : "off")),
+          }}
+          onEnd={onEndNavigation}
+        />
+      )}
       {map &&
         rec &&
+        !navTrip &&
         rec.eligible.map((r) => (
           <RoutePolyline
             key={r.id}
@@ -579,7 +642,7 @@ export function AppShell() {
             onClick={() => setSelectedId(r.id)}
           />
         ))}
-      {map && routeStart && routeEnd && (
+      {map && routeStart && routeEnd && !navTrip && (
         <RouteEndpoints
           map={map}
           start={routeStart}
@@ -593,7 +656,7 @@ export function AppShell() {
       {map && picking && (
         <MapPointPicker map={map} kind={picking} onPick={pickPoint} onCancel={cancelPick} />
       )}
-      {mapState === "ready" && !picking && (
+      {mapState === "ready" && !picking && !navTrip && (
         <div
           className={`absolute left-3 right-16 top-3 z-10 flex flex-col items-start gap-2 ${isMobile ? "" : "max-w-sm"}`}
         >
@@ -690,23 +753,30 @@ export function AppShell() {
       {isMobile ? (
         <>
           {mapArea}
-          <BottomSheet snap={snap} onSnap={setSnap} onHeight={setSheetH}>
-            <div className="mb-4">
-              <BrandHeader />
-            </div>
-            {panel}
-          </BottomSheet>
-          <AraBird
-            message={ara}
-            celebrate={celebrate}
-            working={step !== null}
-            className="absolute right-3 z-10 max-w-[min(90vw,300px)]"
-            style={{ bottom: sheetH + 8 }}
-          />
+          {/* Navigation takes over the screen; the map element itself is never remounted. */}
+          {!navTrip && (
+            <BottomSheet snap={snap} onSnap={setSnap} onHeight={setSheetH}>
+              <div className="mb-4">
+                <BrandHeader />
+              </div>
+              {panel}
+            </BottomSheet>
+          )}
+          {!navTrip && (
+            <AraBird
+              message={ara}
+              celebrate={celebrate}
+              working={step !== null}
+              className="absolute right-3 z-10 max-w-[min(90vw,300px)]"
+              style={{ bottom: sheetH + 8 }}
+            />
+          )}
         </>
       ) : (
         <>
-          <aside className="relative z-10 flex h-full w-[34%] min-w-[380px] max-w-[480px] flex-col border-r bg-card shadow-soft">
+          <aside
+            className={`relative z-10 h-full w-[34%] min-w-[380px] max-w-[480px] flex-col border-r bg-card shadow-soft ${navTrip ? "hidden" : "flex"}`}
+          >
             <div className="p-6 pb-4">
               <BrandHeader />
             </div>

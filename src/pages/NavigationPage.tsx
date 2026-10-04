@@ -16,7 +16,8 @@ interface Props {
   form: SearchRequest;
   selectedId: string;
   onSelect: (id: string) => void;
-  onStart: (routeId: string) => void;
+  onStart: (routeId: string, kind: "recommended" | "fastest" | "alternative") => void;
+  onOpenExternal: (routeId: string) => void;
   onWhy: () => void;
   onBack: () => void;
   onMode: (m: TravelMode) => void;
@@ -38,6 +39,7 @@ export function NavigationPage({
   selectedId,
   onSelect,
   onStart,
+  onOpenExternal,
   onWhy,
   onBack,
   onMode,
@@ -134,7 +136,8 @@ export function NavigationPage({
           selected={selectedId === route.id}
           comparisonAvailable={comparisonAvailable}
           onSelect={() => onSelect(route.id)}
-          onStart={selectedId === route.id ? () => onStart(route.id) : undefined}
+          onStart={selectedId === route.id ? () => onStart(route.id, kind) : undefined}
+          onOpenExternal={selectedId === route.id ? () => onOpenExternal(route.id) : undefined}
           onWhy={kind === "recommended" ? onWhy : undefined}
         />
       ))}

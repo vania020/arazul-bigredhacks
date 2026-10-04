@@ -130,6 +130,6 @@ export const pt: Dict = {
   timeCaveat:
     "Quando há dados por horário, mudar a saída atualiza a exposição histórica. Os tempos de viagem são os da última busca.",
   googleHandoff:
-    "O Google Maps recalcula as direções e pode escolher outra rota. O Arazul não oferece navegação curva a curva.",
+    "O Google Maps recalcula as direções e pode escolher uma rota diferente da selecionada pelo ARAZUL.",
   routingArea: "Área de rotas: {region}",
 };

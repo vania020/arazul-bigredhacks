@@ -10,6 +10,15 @@ export interface LocationValue {
   latLng?: LatLng;
 }
 
+/** One Google navigation step for exactly this route's geometry (Routes library RouteLegStep). */
+export interface RouteStep {
+  instruction: string;
+  maneuver: string | null; // Google maneuver enum string, e.g. "TURN_LEFT"
+  distanceMeters: number;
+  durationSec: number; // static (traffic-free) step duration
+  path: LatLng[];
+}
+
 export interface CandidateRoute {
   id: string;
   source: "google" | "detour";
@@ -17,6 +26,7 @@ export interface CandidateRoute {
   distanceMeters: number;
   durationSec: number;
   via?: LatLng[];
+  steps?: RouteStep[];
 }
 
 export interface Hotspot {

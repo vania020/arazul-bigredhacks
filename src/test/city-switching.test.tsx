@@ -93,7 +93,7 @@ describe("city routing state", () => {
     expect(screen.getByRole("button", { name: /Find routes/ })).toBeInTheDocument();
     expect(screen.queryByText(/37 min/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Grand Central/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /Start route/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Start navigation/ })).not.toBeInTheDocument();
     mocks.computeRoutes.mockResolvedValueOnce([route("new-lima")]);
     demoSearch();
     expect(await screen.findByText(/→ Larcomar/)).toBeInTheDocument();

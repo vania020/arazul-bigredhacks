@@ -1,4 +1,5 @@
 import { useI18n } from "@/i18n";
+import { navigationCopy } from "@/i18n/navigation";
 import type { ScoredRoute } from "@/types/route";
 import { Button } from "@/components/ui/button";
 
@@ -12,6 +13,7 @@ interface Props {
   selected: boolean;
   onSelect: () => void;
   onStart?: (() => void) | undefined;
+  onOpenExternal?: (() => void) | undefined;
   onWhy?: (() => void) | undefined;
   comparisonAvailable?: boolean;
 }
@@ -24,10 +26,12 @@ export function RouteCard({
   selected,
   onSelect,
   onStart,
+  onOpenExternal,
   onWhy,
   comparisonAvailable = true,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const nav = navigationCopy[lang];
   const extra = Math.round((route.durationSec - fastest.durationSec) / 60);
   const pct =
     fastest.exposure > 0
@@ -82,7 +86,7 @@ export function RouteCard({
         </div>
       </Button>
       {onStart && (
-        <p className="mt-3 text-xs leading-relaxed text-text-secondary">{t("googleHandoff")}</p>
+        <p className="mt-3 text-xs leading-relaxed text-text-secondary">{nav.startHint}</p>
       )}
       {(onStart || onWhy) && (
         <div className="mt-3 flex gap-2">
@@ -91,7 +95,7 @@ export function RouteCard({
               onClick={onStart}
               className="h-11 flex-1 rounded-md px-2 text-sm font-semibold hover:bg-deep"
             >
-              {t("startRoute")}
+              {nav.start}
             </Button>
           )}
           {onWhy && (
@@ -104,6 +108,18 @@ export function RouteCard({
             </Button>
           )}
         </div>
+      )}
+      {onOpenExternal && (
+        <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+          <button
+            type="button"
+            onClick={onOpenExternal}
+            className="min-h-8 font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            {nav.openGoogle} ↗
+          </button>{" "}
+          {t("googleHandoff")}
+        </p>
       )}
     </article>
   );

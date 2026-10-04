@@ -129,7 +129,7 @@ export const en = {
   timeCaveat:
     "Where hourly data is available, changing departure time updates historical exposure. Travel times remain from the last route search.",
   googleHandoff:
-    "Google Maps recalculates directions and may choose a different route. Arazul does not provide turn-by-turn navigation.",
+    "Google Maps recalculates directions and may choose a different route than the one ARAZUL selected.",
   routingArea: "Routing area: {region}",
 };
 export type Dict = typeof en;
