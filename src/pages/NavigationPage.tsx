@@ -3,7 +3,6 @@ import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import { navigationCopy } from "@/i18n/navigation";
 import { routeUiCopy } from "@/i18n/routeUi";
-import { timeOfDayCopy } from "@/i18n/time-of-day";
 import { tripToolsText } from "@/i18n/trip-tools";
 import { hasExposureComparison } from "@/services/exposureService";
 import { RouteComparison } from "@/components/RouteComparison";
@@ -31,7 +30,6 @@ interface Props {
   extra: number;
   setExtra: (n: number) => void;
   feedback: string | null;
-  timeComparison?: ReactNode;
   tripTools?: ReactNode;
   /** Lower-exposure routes outside the time budget (secondary; never the recommendation). */
   lowerExposure?: ReactNode;
@@ -173,7 +171,6 @@ export function NavigationPage({
   extra,
   setExtra,
   feedback,
-  timeComparison,
   tripTools,
   lowerExposure,
   onExpand,
@@ -254,9 +251,6 @@ export function NavigationPage({
         </div>
       </section>
 
-      {timeComparison && (
-        <SheetSection title={timeOfDayCopy[lang].title}>{timeComparison}</SheetSection>
-      )}
       {tripTools && <SheetSection title={tripToolsText[lang].share}>{tripTools}</SheetSection>}
       <SheetSection title={copy.advanced}>
         <div className="space-y-4">

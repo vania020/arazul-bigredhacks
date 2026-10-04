@@ -123,19 +123,16 @@ describe("city routing state", () => {
     demoSearch();
     await screen.findByText(/→ Larcomar/);
     fireEvent.click(screen.getByText(/Advanced options/));
-    fireEvent.click(screen.getByRole("radio", { name: "Car / Rideshare" }));
+    fireEvent.click(screen.getByRole("radio", { name: "Car" }));
     await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("ZERO_RESULTS"));
     expect(screen.getByRole("radio", { name: "Walking" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: "Car / Rideshare" })).toHaveAttribute(
-      "aria-checked",
-      "false",
-    );
+    expect(screen.getByRole("radio", { name: "Car" })).toHaveAttribute("aria-checked", "false");
     expect(screen.getByText(/→ Larcomar/)).toBeInTheDocument();
   });
 });
 
-describe("historical comparison integration", () => {
-  it("preserves the selected route when a different window changes the recommendation", async () => {
+describe("departure time integration", () => {
+  it("preserves the selected route when a different departure hour changes the recommendation", async () => {
     const fast = {
       ...route("fast", 600),
       path: [
@@ -172,7 +169,6 @@ describe("historical comparison integration", () => {
     });
     mocks.computeRoutes.mockResolvedValue([fast, alternate]);
     mount();
-    await screen.findByRole("button", { name: /Late night/ });
     demoSearch();
     const routes = await screen.findByRole("radiogroup", { name: "Routes" });
     await waitFor(() => {
@@ -180,11 +176,9 @@ describe("historical comparison integration", () => {
       expect(initialRoute).toHaveTextContent(/Recommended/i);
       expect(initialRoute).toHaveAttribute("aria-checked", "true");
     });
-    const chart = screen.getByRole("region", { name: "Compare time of day" });
-    const before = within(chart)
-      .getAllByText(/^Index /)
-      .map((el) => el.textContent);
-    fireEvent.click(within(chart).getByRole("button", { name: /Late night/ }));
+    // The demo trip departs at 22:00; a late-night departure flips which route is lower exposure.
+    fireEvent.click(screen.getByText(/Advanced options/));
+    fireEvent.change(screen.getByRole("combobox", { name: "Hour" }), { target: { value: "0" } });
     await waitFor(() =>
       expect(within(routes).getByRole("radio", { name: /10 min/ })).toHaveTextContent(
         /Recommended/i,
@@ -194,11 +188,6 @@ describe("historical comparison integration", () => {
       "aria-checked",
       "true",
     );
-    expect(
-      within(chart)
-        .getAllByText(/^Index /)
-        .map((el) => el.textContent),
-    ).toEqual(before);
     expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
   });
   it("keeps published activity off when the city changes", () => {

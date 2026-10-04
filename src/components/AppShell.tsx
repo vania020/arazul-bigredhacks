@@ -36,7 +36,6 @@ import { NavigationPage, RouteSwitcher, TripHeader } from "@/pages/NavigationPag
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { CandidateRoute, SearchRequest } from "@/types/route";
 
-import { TimeOfDayComparison } from "./TimeOfDayComparison";
 import { LowerExposureOption } from "./LowerExposureOption";
 import { outsideBudgetOptions, type OutsideBudgetOption } from "@/services/outsideBudget";
 import { TripTools } from "./TripTools";
@@ -455,17 +454,6 @@ export function AppShell() {
   const steps = [t("stepFinding"), t("stepComparing"), t("stepDetours")];
 
   const selected = rec?.eligible.find((r) => r.id === selectedId) ?? rec?.recommended;
-  const timeComparison = (
-    <TimeOfDayComparison
-      route={selected ?? null}
-      grid={grid}
-      mode={rec ? searchMode : form.mode}
-      hour={hour}
-      timeZone={city.timeZone}
-      onHourChange={onHour}
-      embedded={!!rec}
-    />
-  );
   const tripTools =
     rec && selected && plannedRequest ? (
       <TripTools
@@ -584,7 +572,6 @@ export function AppShell() {
           extra={extra}
           setExtra={setExtra}
           feedback={feedback}
-          timeComparison={timeComparison}
           tripTools={tripTools}
           onExpand={isMobile ? () => setSnap("expanded") : undefined}
           lowerExposure={
@@ -607,7 +594,6 @@ export function AppShell() {
           onSubmit={() => runSearch(form)}
           onDemo={onDemo}
           error={null}
-          timeComparison={timeComparison}
           onPick={startPick}
           layout={isMobile ? "sheet" : "panel"}
         />

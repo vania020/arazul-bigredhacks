@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
 import { LocationSearch } from "@/components/LocationSearch";
@@ -18,7 +17,6 @@ interface Props {
   onSubmit: () => void;
   onDemo: () => void;
   error: string | null;
-  timeComparison?: ReactNode;
   onPick?: ((kind: "origin" | "destination") => void) | undefined;
   /**
    * "panel" (desktop): trip card, mode and a visible time budget in one column.
@@ -94,7 +92,6 @@ export function SearchPage({
   onSubmit,
   onDemo,
   error,
-  timeComparison,
   onPick,
   layout = "panel",
 }: Props) {
@@ -152,7 +149,6 @@ export function SearchPage({
             onChange={(departureHour) => setForm({ ...form, departureHour })}
           />
           {!panel && <DetourBudgetSlider value={extra} onChange={setExtra} />}
-          {timeComparison}
         </div>
       </SheetSection>
     </form>

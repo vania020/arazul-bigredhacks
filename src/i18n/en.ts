@@ -7,7 +7,7 @@ export const en = {
   locationDenied: "We couldn't access your location. You can type an address instead.",
   mode: "Travel mode",
   walking: "Walking",
-  driving: "Car / Rideshare",
+  driving: "Car",
   departure: "Departure",
   now: "Now",
   customTime: "Custom time",
