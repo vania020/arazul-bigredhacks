@@ -14,14 +14,16 @@ export const modeIcons: Record<TravelMode, React.ReactNode> = {
 export function TravelModeToggle({
   value,
   onChange,
+  compact = false,
 }: {
+  compact?: boolean;
   value: TravelMode;
   onChange: (m: TravelMode) => void;
 }) {
   const { t } = useI18n();
   return (
     <div role="radiogroup" aria-label={t("mode")} className="grid grid-cols-2 gap-2">
-      {(["walking", "driving"] as TravelMode[]).map((m) => {
+      {(["driving", "walking"] as TravelMode[]).map((m) => {
         const on = value === m;
         return (
           <button
@@ -30,7 +32,7 @@ export function TravelModeToggle({
             role="radio"
             aria-checked={on}
             onClick={() => onChange(m)}
-            className={`flex h-11 items-center justify-center gap-2 rounded-full border text-sm font-semibold transition-all ${on ? "border-primary bg-secondary text-primary ring-1 ring-primary shadow-soft" : "bg-card text-text-secondary hover:border-sky hover:text-foreground"}`}
+            className={`flex ${compact ? "h-9" : "h-11"} items-center justify-center gap-2 rounded-full border text-sm font-semibold transition-all ${on ? "border-primary bg-secondary text-primary ring-1 ring-primary shadow-soft" : "bg-card text-text-secondary hover:border-sky hover:text-foreground"}`}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
               {modeIcons[m]}
