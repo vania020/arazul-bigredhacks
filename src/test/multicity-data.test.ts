@@ -1,17 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import nycAsset from "../../public/data/nyc.json";
 import chicagoAsset from "../../public/data/chicago.json";
 import sfAsset from "../../public/data/san-francisco.json";
 import londonAsset from "../../public/data/london.json";
 import { validateRiskGrid } from "@/services/riskDataService";
 import { cellKey, hasExposureComparison, recommend, scoreRoute } from "@/services/exposureService";
 import type { CandidateRoute } from "@/types/route";
+import { nycCoverageAsset, nycNative, nycNativeAsset } from "./nycFixtures";
 
-const nyc = validateRiskGrid(nycAsset, "nyc");
-// Frozen Brisa source cell 14:28 center, independently obtained from its package.
-const center = { lat: 40.75726733740568, lng: -73.98591373172748 };
+const chicago = validateRiskGrid(chicagoAsset, "chicago");
+// Inside the Chicago Loop planning rectangle.
+const center = { lat: 41.88, lng: -87.63 };
+// Times Square, inside the five-borough NYC mask.
+const timesSquare = { lat: 40.75726733740568, lng: -73.98591373172748 };
 const covered: CandidateRoute = {
-  id: "times-square",
+  id: "loop",
   source: "google",
   distanceMeters: 80,
   durationSec: 70,
@@ -21,12 +23,16 @@ const outside: CandidateRoute = {
   ...covered,
   id: "leaves-area",
   durationSec: 80,
-  path: [center, { lat: 40.79, lng: center.lng }, center],
+  path: [center, { lat: 41.95, lng: center.lng }, center],
 };
 
 describe("real multicity aggregate data", () => {
   it.each([
-    ["nyc", nycAsset, [-74.02, 40.7, -73.965, 40.78]],
+    [
+      "nyc",
+      nycNativeAsset(),
+      [-74.25874745984156, 40.47737324425922, -73.70000906387347, 40.91766180885905],
+    ],
     ["chicago", chicagoAsset, [-87.644, 41.866, -87.617, 41.891]],
     ["san-francisco", sfAsset, [-122.426, 37.773, -122.389, 37.803]],
     ["london", londonAsset, [-0.155, 51.495, -0.085, 51.535]],
@@ -42,22 +48,25 @@ describe("real multicity aggregate data", () => {
     },
   );
 
-  it("maps a real NYC source coordinate to its exact original intensity", () => {
-    expect(cellKey(nyc, center.lat, center.lng)).toBe("28_14");
-    expect(nyc.cells["28_14"]!.walking).toEqual([
-      0.8472494682372725, 0.713138138395074, 0.7851563824194946, 0.8862015931139076,
-    ]);
-    const score = scoreRoute(covered, nyc, "walking", 20);
+  it("maps a real NYC coordinate to its stored cell without rescaling", () => {
+    const nyc = nycNative();
+    const key = cellKey(nyc, timesSquare.lat, timesSquare.lng);
+    expect(nycNativeAsset().cells[key]!.walking).toEqual(nyc.cells[key]!.walking);
+    const walk: CandidateRoute = {
+      ...covered,
+      path: [timesSquare, { lat: timesSquare.lat + 0.0007, lng: timesSquare.lng }],
+    };
+    const score = scoreRoute(walk, nyc, "walking", 20);
     expect(score.coverage).toBe("covered");
     expect(score.exposure).toBeGreaterThan(0);
     expect(score.exposure).toBeLessThan(100); // Preserves normalized values; display scale must not alter scoring.
   });
 
   it("withholds exposure comparison when a route exits and reenters the planning area", () => {
-    const score = scoreRoute(outside, nyc, "walking", 20);
+    const score = scoreRoute(outside, chicago, "walking", 20);
     expect(score.coverage).toBe("outside-coverage");
     expect(score.hotspots).toEqual([]);
-    const result = recommend([covered, outside], nyc, "walking", 20, 5)!;
+    const result = recommend([covered, outside], chicago, "walking", 20, 5)!;
     expect(result.reason).toBe("outside-coverage");
     expect(result.recommended.id).toBe(covered.id);
     expect(result.improvement).toBe(0);
@@ -65,8 +74,8 @@ describe("real multicity aggregate data", () => {
   });
 
   it("does not treat compatibility driving arrays as supported observations", () => {
-    expect(scoreRoute(covered, nyc, "driving", 12).coverage).toBe("unsupported-mode");
-    const result = recommend([covered], nyc, "driving", 12, 5)!;
+    expect(scoreRoute(covered, chicago, "driving", 12).coverage).toBe("unsupported-mode");
+    const result = recommend([covered], chicago, "driving", 12, 5)!;
     expect(result.reason).toBe("unsupported-mode");
     expect(hasExposureComparison(result)).toBe(false);
   });
@@ -97,23 +106,23 @@ describe("real multicity aggregate data", () => {
   });
 
   it("rejects a dataset associated with a different city", () => {
-    expect(() => validateRiskGrid(nycAsset, "chicago")).toThrow();
+    expect(() => validateRiskGrid(nycNativeAsset(), "chicago")).toThrow();
   });
 
   it("rejects negative activity instead of accepting a corrupt dataset", () => {
-    const corrupt = structuredClone(nycAsset);
-    corrupt.cells["0_0"].walking[0] = -1;
+    const corrupt = nycNativeAsset();
+    corrupt.cells["0_0"]!.walking[0] = -1;
     expect(() => validateRiskGrid(corrupt, "nyc")).toThrow();
   });
 });
 
 describe("reject malformed coverage data", () => {
   it("rejects positive incident totals with no grid observations", () => {
-    expect(() => validateRiskGrid({ ...nycAsset, cells: {} }, "nyc")).toThrow();
+    expect(() => validateRiskGrid({ ...chicagoAsset, cells: {} }, "chicago")).toThrow();
   });
 
   it("rejects documented coverage extending beyond its backing grid", () => {
-    const corrupt = structuredClone(nycAsset);
+    const corrupt = nycNativeAsset();
     corrupt.meta.coverageBounds = [-75, 40, -73, 41];
     expect(() => validateRiskGrid(corrupt, "nyc")).toThrow();
   });
@@ -141,18 +150,25 @@ describe("runtime incident dataset loading", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: false, status: 503 })
-      .mockResolvedValueOnce({ ok: true, json: async () => nycAsset });
+      .mockResolvedValueOnce({ ok: true, json: async () => chicagoAsset });
     vi.stubGlobal("fetch", fetchMock);
     const { loadRiskGrid, city } = await freshLoader();
-    await expect(loadRiskGrid(city("nyc"))).rejects.toThrow();
-    await expect(loadRiskGrid(city("nyc"))).resolves.toMatchObject({ meta: { cityId: "nyc" } });
+    await expect(loadRiskGrid(city("chicago"))).rejects.toThrow();
+    await expect(loadRiskGrid(city("chicago"))).resolves.toMatchObject({
+      meta: { cityId: "chicago" },
+    });
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("shares repeated city requests without crossing city datasets", async () => {
     const fetchMock = vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => (url === "/data/nyc.json" ? nycAsset : chicagoAsset),
+      json: async () =>
+        url === "/data/nyc-native.json"
+          ? nycNativeAsset()
+          : url === "/data/nyc-coverage.geojson"
+            ? nycCoverageAsset()
+            : chicagoAsset,
     }));
     vi.stubGlobal("fetch", fetchMock);
     const { loadRiskGrid, city } = await freshLoader();
@@ -164,8 +180,10 @@ describe("runtime incident dataset loading", () => {
     expect(ny?.meta.cityId).toBe("nyc");
     expect(chicago?.meta.cityId).toBe("chicago");
     expect(loadRiskGrid(city("nyc"))).toBe(first);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    expect(fetchMock).toHaveBeenCalledWith("/data/nyc.json");
+    // NYC = grid + its polygon mask; Chicago = grid only.
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledWith("/data/nyc-native.json");
+    expect(fetchMock).toHaveBeenCalledWith("/data/nyc-coverage.geojson");
     expect(fetchMock).toHaveBeenCalledWith("/data/chicago.json");
   });
 });

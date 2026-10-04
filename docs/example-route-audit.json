@@ -1,0 +1,25 @@
+{
+  "radiusM": 250.0,
+  "eligibleComplaintsNearRoute": 378,
+  "byNativeKeyCode": {
+    "344": 195,
+    "109": 75,
+    "105": 33,
+    "106": 75
+  },
+  "periodStart": "2025-01-01",
+  "periodEndExclusive": "2026-01-01",
+  "bbox": [
+    -73.99634280010984,
+    40.74884259909069,
+    -73.97461349989015,
+    40.75449640090931
+  ],
+  "snapshotRetrievedAt": "2026-10-04T05:47:01.967725+00:00",
+  "distanceMethod": "Minimum spherical point-to-great-circle-segment distance; Earth radius 6371008.8m.",
+  "limitations": [
+    "Distance is to the NYPD published approximate point, not the undisclosed original incident location.",
+    "Nearby complaint counts are an audit diagnostic, not the app route exposure score.",
+    "This command does not establish route coverage. The app must use the NYC coverage guard before scoring."
+  ]
+}

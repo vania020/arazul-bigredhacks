@@ -38,14 +38,15 @@ export const CITIES: CityConfig[] = [
   {
     id: "nyc",
     name: "New York City",
-    region: "Central Manhattan",
+    region: "All five boroughs",
     countryCode: "us",
     timeZone: "America/New_York",
     center: { lat: 40.7484, lng: -73.9857 },
     zoom: 14,
     searchRadiusM: 15000,
     defaultMode: "walking",
-    datasetUrl: "/data/nyc.json",
+    // nyc-native-v1 (polygon-guarded). The superseded Central Manhattan import nyc.json is inactive.
+    datasetUrl: "/data/nyc-native.json",
     demo: {
       origin: point("Penn Station, Manhattan", 40.7510909, -73.9933748),
       destination: point("Grand Central Terminal, Manhattan", 40.7522481, -73.9775815),

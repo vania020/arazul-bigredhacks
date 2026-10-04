@@ -1,0 +1,25 @@
+{
+  "version": "nyc-native-v1",
+  "periodStart": "2025-01-01",
+  "periodEndExclusive": "2026-01-01",
+  "timezone": "America/New_York",
+  "cellSizeM": 250,
+  "projectionLatitude": 40.7,
+  "haloCells": 3,
+  "coverageDatasetId": "wh2p-dxnf",
+  "selectedKeyCodes": {
+    "105": "ROBBERY",
+    "106": "FELONY ASSAULT",
+    "109": "GRAND LARCENY",
+    "344": "ASSAULT 3 & RELATED OFFENSES"
+  },
+  "grandLarcenyFromPersonPdCodes": ["404", "406", "408", "414", "415", "417", "419"],
+  "premisesAllowlist": ["STREET", "PARK/PLAYGROUND"],
+  "boroughAllowlist": ["BRONX", "BROOKLYN", "MANHATTAN", "QUEENS", "STATEN ISLAND"],
+  "temporalPolicy": "Only exact starting timestamps or complete intervals contained within one local date and six-hour bucket. Other times remain in the source snapshot and exclusion audit, not assigned a fabricated hour.",
+  "weighting": "Equal weight per eligible complaint. No SSP severity weights, recency weighting, driving weights, or population/footfall denominators.",
+  "temporalShrinkage": 20,
+  "spatialKernel": {"center": 0.5, "north": 0.125, "south": 0.125, "east": 0.125, "west": 0.125},
+  "normalization": "v / (v + q), q = max(1, nearest-rank p90 of positive smoothed values in planning-bounds cells across four buckets)",
+  "supportedModes": ["walking"]
+}

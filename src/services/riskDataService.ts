@@ -1,6 +1,7 @@
 import gridAsset from "@/assets/risk-grid.json.asset.json";
 import type { CityConfig } from "@/config/cities";
 import type { RiskGrid, TravelMode } from "@/types/risk";
+import { validateCoverageGeoJSON } from "./nycCoverage";
 
 const cache = new Map<string, Promise<RiskGrid | null>>();
 /** Validate runtime assets before treating missing cells as zero reported counts. */
@@ -65,6 +66,35 @@ export function validateRiskGrid(input: unknown, cityId: string): RiskGrid {
     throw new Error("Invalid display scale");
   if (m.timeResolution !== undefined && !["six-hour", "all-day"].includes(m.timeResolution))
     throw new Error("Invalid time resolution");
+  if (
+    m.requiresPolygonCoverageGuard !== undefined &&
+    typeof m.requiresPolygonCoverageGuard !== "boolean"
+  )
+    throw new Error("Invalid coverage guard");
+  if (
+    m.coverageGeojsonUrl !== undefined &&
+    (typeof m.coverageGeojsonUrl !== "string" || !m.coverageGeojsonUrl.startsWith("/"))
+  )
+    throw new Error("Invalid coverage geometry URL");
+  if (m.requiresPolygonCoverageGuard) {
+    if (!m.coverageGeojsonUrl || !m.coverageBounds)
+      throw new Error("Polygon-guarded dataset lacks coverage geometry");
+    // The converter serializes every cell, including zeros: a missing key is corruption, not zero.
+    if (Object.keys(grid.cells).length !== m.rows * m.cols)
+      throw new Error("Incomplete incident grid");
+    for (let r = 0; r < m.rows; r++)
+      for (let c = 0; c < m.cols; c++) {
+        const cell = grid.cells[`${r}_${c}`];
+        if (!cell) throw new Error("Missing incident cell");
+        for (const values of [cell.walking, cell.driving])
+          if (
+            !Array.isArray(values) ||
+            values.length !== 4 ||
+            values.some((v) => !Number.isFinite(v) || v < 0 || v > 1)
+          )
+            throw new Error("Invalid incident values");
+      }
+  }
   for (const [key, cell] of Object.entries(grid.cells)) {
     const match = /^(\d+)_(\d+)$/.exec(key);
     if (!match || Number(match[1]) >= m.rows || Number(match[2]) >= m.cols)
@@ -80,15 +110,42 @@ export function validateRiskGrid(input: unknown, cityId: string): RiskGrid {
   }
   return { meta: { ...m, cityId }, cells: grid.cells, isDemo: false };
 }
+
+/** The mask must be the one the grid was built from: every vertex lies in coverageBounds. */
+export function attachCoverageGeometry(grid: RiskGrid, input: unknown): RiskGrid {
+  const geometry = validateCoverageGeoJSON(input);
+  const b = grid.meta.coverageBounds;
+  if (!b) throw new Error("Coverage geometry without coverage bounds");
+  for (const feature of geometry.features) {
+    const g = feature.geometry;
+    const polygons = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+    for (const ring of polygons.flat())
+      for (const [lng, lat] of ring)
+        if (lng < b[0] - 1e-9 || lat < b[1] - 1e-9 || lng > b[2] + 1e-9 || lat > b[3] + 1e-9)
+          throw new Error("Coverage geometry does not match incident grid");
+  }
+  return { ...grid, coverageGeometry: geometry };
+}
+
+async function fetchJson(url: string, label: string) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${label} HTTP ${response.status}`);
+  return response.json();
+}
 /** No synthetic fallback: unavailable sources leave Google routing usable without exposure claims. */
 export function loadRiskGrid(city: CityConfig): Promise<RiskGrid | null> {
   if (!city.datasetUrl) return Promise.resolve(null);
   if (!cache.has(city.id)) {
     const url = city.datasetUrl === "hosted-sao-paulo" ? gridAsset.url : city.datasetUrl;
-    const request = fetch(url)
-      .then(async (response) => {
-        if (!response.ok) throw new Error(`Incident data HTTP ${response.status}`);
-        const grid = validateRiskGrid(await response.json(), city.id);
+    const request = fetchJson(url, "Incident data")
+      .then(async (data) => {
+        let grid = validateRiskGrid(data, city.id);
+        // Fail closed: without its polygon mask a guarded grid is unusable (routing stays available).
+        if (grid.meta.requiresPolygonCoverageGuard)
+          grid = attachCoverageGeometry(
+            grid,
+            await fetchJson(grid.meta.coverageGeojsonUrl!, "Coverage geometry"),
+          );
         if (city.id === "sao-paulo") {
           grid.meta.sourceUrl = "https://www.ssp.sp.gov.br/estatistica/consultas";
           grid.meta.timeResolution = "six-hour";

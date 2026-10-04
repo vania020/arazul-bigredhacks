@@ -1,6 +1,7 @@
 import { CATEGORY_WEIGHTS } from "@/config/exposureConfig";
 import { useI18n } from "@/i18n";
 import { Modal } from "./Modal";
+import { NycSourceDetails } from "./NycSourceDetails";
 import type { RiskGrid } from "@/types/risk";
 
 export function MethodologyModal({
@@ -18,6 +19,7 @@ export function MethodologyModal({
       <p className="text-sm text-text-secondary">
         {grid?.meta.methodology ?? (grid ? t("methodologyIntro") : t("dataUnavailable"))}
       </p>
+      {grid && <NycSourceDetails meta={grid.meta} />}
       {grid?.meta.timeResolution === "all-day" && (
         <p className="mt-3 text-sm">{t("monthlyData")}</p>
       )}

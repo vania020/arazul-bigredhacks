@@ -118,7 +118,7 @@ Open `http://localhost:8080/`. Both `npm run dev` and `npm run dev:local` (same 
 
 Google Maps reads `VITE_GOOGLE_MAPS_API_KEY` from the local Vite environment. `.env.local` stays ignored by Git; copy `.env.example` and supply your browser-restricted key. Map display, address suggestions and route calculation require the corresponding Google Maps, Places and Routes services to be available to that key, including permission for the local origin. The demo-trip button fills the form; click **Find routes** to calculate it.
 
-Run `npm test` and `npm run build` to check routing and the production build. Tests cover route matching, city switching, data validation, projections, coverage exclusions, unsupported travel modes, unavailable sources and timezone/DST handling. Map and risk-data availability also need a browser check. Local setup does not publish the app or change Lovable hosting.
+Run `npm test` and `npm run build` to check routing and the production build. Tests cover route matching, city switching, data validation, projections, coverage exclusions, unsupported travel modes, unavailable sources and timezone/DST handling. Map and risk-data availability also need a browser check. NYC data checks need Python 3.10+ (standard library only): `python -m unittest discover -s tests -p "test_*.py" -v` and `node --experimental-strip-types tests/test_coverage.mjs`; see [US provenance](docs/US_CITY_DATA.md#nyc-native-grid-active) for the offline rebuild and hash check. Local setup does not publish the app or change Lovable hosting.
 
 ## What the codebase does
 
@@ -135,13 +135,13 @@ Changing the historical hour or detour allowance re-scores cached candidates loc
 | City | Incident coverage | Exposure comparison |
 | --- | --- | --- |
 | São Paulo | Team-provided SSP-SP metro grid, 2025-01-01 to 2026-08-31 | Walking/driving, four six-hour windows; original preprocessing pipeline is not in this repository |
-| New York City | Central Manhattan, selected outdoor reports, 2025 | Walking only, four six-hour windows |
+| New York City | All five boroughs inside the official NYC boundary (water included): selected NYPD outdoor complaints, 2025 occurrences, model `nyc-native-v1` (`public/data/nyc-native.json`) | Walking only, four local six-hour windows; NYC driving is unsupported |
 | Chicago | Loop, selected outdoor reports, 2025 | Walking only, four six-hour windows |
 | San Francisco | Downtown, selected street/public-place robbery reports, 2025 | Walking only, four six-hour windows |
 | London | Central London rectangle, selected published categories, August 2026 | Walking only; monthly source has no incident hours |
 | Lima | Google routing available | No verified incident dataset connected; no exposure ranking |
 
-Google can return routes beyond the coverage rectangles. Exposure comparison requires every sampled route in the comparison to stay within documented coverage and use a supported travel mode. Missing data never means low risk. London does not acquire invented nighttime scores. City sources, offence selections, periods and normalization differ; percentages compare routes within one dataset, not the safety of one city against another. See [US provenance](docs/US_CITY_DATA.md), [London provenance](docs/LONDON_DATA.md), and [Lima source audit](docs/LIMA_DATA.md).
+Google can return routes beyond the coverage rectangles. Exposure comparison requires every sampled route in the comparison to stay within documented coverage and use a supported travel mode. NYC's rectangle includes New Jersey, so NYC also loads an official borough polygon mask. Every full route segment must stay inside it, the heatmap is clipped to it, and if the mask cannot load NYC exposure is unavailable while routing continues. Missing data never means low risk. London does not acquire invented nighttime scores. City sources, offence selections, periods and normalization differ; percentages compare routes within one dataset, not the safety of one city against another. NYC scores are a historical reported outdoor-complaint exposure index: a lower score means lower modeled exposure to the selected published complaints, not a probability of harm or a measure of all crime. The earlier Central Manhattan import (`public/data/nyc.json`) is superseded and inactive. See [US provenance](docs/US_CITY_DATA.md), [NYC translation](docs/NYC_TRANSLATION.md), [London provenance](docs/LONDON_DATA.md), and [Lima source audit](docs/LIMA_DATA.md).
 
 ## Where to make changes
 
@@ -155,7 +155,7 @@ Google can return routes beyond the coverage rectangles. Exposure comparison req
 | Map rendering and overlays | `src/map/` |
 | In-app navigation (GPS matching, rerouting, voice) and its thresholds | `src/navigation/`, `src/components/navigation/`, `src/config/navigationConfig.ts` |
 | English, Portuguese and Spanish text | `src/i18n/` |
-| Reproducible imported city aggregates | `scripts/import-brisa-cities.py`, `scripts/build-london-data.py` |
+| Reproducible imported city aggregates | `scripts/build-nyc-data.py` with `config/nyc-policy.json` (NYC), `scripts/import-brisa-cities.py` (Chicago/SF), `scripts/build-london-data.py` |
 
 A new city needs an entry in the registry, verified source provenance and spatial coverage, a runtime aggregate with supported modes/time resolution, and regression tests. A routing-only city can use `datasetUrl: null`. Production use still needs Google API billing/restrictions, reliable hosting for runtime datasets, a refresh pipeline and monitoring. The original Brisa native app projects are not part of Arazul; selected activity, time-comparison and trip-sharing features have been adapted for this web app.
 

@@ -35,3 +35,9 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# NYC conversion: accidental duplicate package folder and local-only complaint snapshots
+/arazul-nyc-conversion/
+/private-data/nyc/
+__pycache__/
+*.pyc

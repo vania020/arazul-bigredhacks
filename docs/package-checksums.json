@@ -1,0 +1,26 @@
+{
+  "public/data/nyc-native.json": {
+    "bytes": 3282592,
+    "sha256": "4d11176e53d7ae3f7ad3e3eef4c1b3a40014504a67b5852a05f1227352df6b12"
+  },
+  "public/data/nyc-coverage.geojson": {
+    "bytes": 142894,
+    "sha256": "c4430d84fe9e02b3cb67298abb9607f4c28b8d51af9edc37733fd682677d799e"
+  },
+  "config/nyc-policy.json": {
+    "bytes": 1287,
+    "sha256": "088a789d5678a5d58c029fd8d0442dcb52344437b222a7906b293c147fbdaafb"
+  },
+  "docs/nyc-audit.json": {
+    "bytes": 18175,
+    "sha256": "dec232e6f29696d88bf913bd2e668a9aed184a99cd2823a8fc5dcd7d1cfdc166"
+  },
+  "private-data/nyc/snapshot.json.gz": {
+    "bytes": 1902733,
+    "sha256": "f6af43d649fdfd3f627a5cf3197e21de64f10672f0604786125f5c171f266084"
+  },
+  "private-data/nyc/normalized-complaints.jsonl.gz": {
+    "bytes": 2810471,
+    "sha256": "193a61e012fc24751a138c038d839cc05ec63055594ccde2a7a3b1628e6a2711"
+  }
+}

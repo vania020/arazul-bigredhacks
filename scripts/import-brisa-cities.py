@@ -6,7 +6,12 @@ import json
 import math
 from pathlib import Path
 
-PACKAGES = [('nyc', 'nyc-manhattan', 'nyc'), ('chicago', 'chicago-loop', 'chicago'), ('san-francisco', 'sf-downtown', 'sf')]
+PACKAGES = [('chicago', 'chicago-loop', 'chicago'), ('san-francisco', 'sf-downtown', 'sf')]
+# Superseded by public/data/nyc-native.json (scripts/build-nyc-data.py, model nyc-native-v1), which is
+# the active NYC asset. The legacy Central Manhattan import is skipped unless explicitly requested and
+# only ever writes the inactive nyc.json; it never touches nyc-native.json or src/config/cities.ts.
+SUPERSEDED_NYC = ('nyc', 'nyc-manhattan', 'nyc')
+PROTECTED_OUTPUTS = {'nyc-native.json', 'nyc-coverage.geojson'}
 
 
 def convert(root, city_id, package, config_name):
@@ -61,12 +66,19 @@ def main():
     parser.add_argument('--brisa-root', type=Path, required=True)
     parser.add_argument('--output-dir', type=Path, default=Path(__file__).resolve().parents[1] / 'public/data')
     parser.add_argument('--check', action='store_true', help='Verify checked-in outputs instead of writing')
+    parser.add_argument('--include-superseded-nyc', action='store_true',
+                        help='Also rebuild the inactive legacy public/data/nyc.json (does not activate it)')
     args = parser.parse_args()
     if not args.check:
         args.output_dir.mkdir(parents=True, exist_ok=True)
-    for city_id, package, config_name in PACKAGES:
+    packages = PACKAGES + ([SUPERSEDED_NYC] if args.include_superseded_nyc else [])
+    if not args.include_superseded_nyc:
+        print('nyc: skipped; the active NYC asset is nyc-native.json from scripts/build-nyc-data.py')
+    for city_id, package, config_name in packages:
         result = convert(args.brisa_root, city_id, package, config_name)
         path = args.output_dir / (city_id + '.json')
+        if path.name in PROTECTED_OUTPUTS:
+            raise SystemExit(f'Refusing to overwrite {path.name}; it is built by scripts/build-nyc-data.py')
         if args.check:
             assert json.loads(path.read_text()) == result, f'Stale output: {path}'
         else:

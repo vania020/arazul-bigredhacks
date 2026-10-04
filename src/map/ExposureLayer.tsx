@@ -3,11 +3,47 @@ import { useEffect } from "react";
 import { EXPOSURE_CONFIG as C, EXPOSURE_SCALE } from "@/config/exposureConfig";
 import { blendedValue, scaleIndexFor } from "@/services/exposureService";
 import { samplePath } from "@/services/geo";
+import { isPointInsideCoverage, type CoverageGeoJSON } from "@/services/nycCoverage";
 import { cssColor } from "./cssColor";
 import type { RiskGrid, TravelMode } from "@/types/risk";
 import type { LatLng } from "@/types/route";
 
-export type ExposureLayerStatus = "ready" | "zoom-in" | "outside-coverage" | "empty";
+export type ExposureLayerStatus =
+  "ready" | "zoom-in" | "outside-coverage" | "empty" | "unavailable";
+
+type Ring = [number, number][];
+/** Polygon rings whose extent touches the view [west,south,east,north]. */
+function visibleRings(geometry: CoverageGeoJSON, view: number[]) {
+  const rings: Ring[] = [];
+  for (const { geometry: g } of geometry.features)
+    for (const ring of (g.type === "Polygon" ? [g.coordinates] : g.coordinates).flat()) {
+      let w = Infinity,
+        s = Infinity,
+        e = -Infinity,
+        n = -Infinity;
+      for (const [x, y] of ring) {
+        w = Math.min(w, x);
+        e = Math.max(e, x);
+        s = Math.min(s, y);
+        n = Math.max(n, y);
+      }
+      if (e >= view[0]! && w <= view[2]! && n >= view[1]! && s <= view[3]!) rings.push(ring);
+    }
+  return rings;
+}
+/** A straight boundary crossing the view always leaves a corner or a vertex on the covered side. */
+function viewTouchesCoverage(geometry: CoverageGeoJSON, rings: Ring[], view: number[]) {
+  const [w, s, e, n] = view as [number, number, number, number];
+  if (rings.some((ring) => ring.some(([x, y]) => x >= w && x <= e && y >= s && y <= n)))
+    return true;
+  return [
+    [w, s],
+    [w, n],
+    [e, s],
+    [e, n],
+    [(w + e) / 2, (s + n) / 2],
+  ].some(([lng, lat]) => isPointInsideCoverage({ lat: lat!, lng: lng! }, geometry));
+}
 
 /** A viewport-sized canvas; visual intensity never changes route scoring. */
 export function ExposureLayer({
@@ -61,6 +97,13 @@ export function ExposureLayer({
         this.canvas.remove();
       }
       override draw() {
+        const geometry = grid.coverageGeometry;
+        // Fail closed: a guarded grid without its polygon mask would imply coverage outside the city.
+        if (grid.meta.requiresPolygonCoverageGuard && !geometry) {
+          this.canvas.width = 0;
+          onStatus("unavailable");
+          return;
+        }
         const proj = this.getProjection();
         const b = map.getBounds();
         const zoom = map.getZoom() ?? 0;
@@ -98,6 +141,27 @@ export function ExposureLayer({
         ) {
           onStatus("outside-coverage");
           return;
+        }
+        // Polygon-masked datasets: clip every cell to the coverage polygons (holes excluded).
+        if (geometry) {
+          const view = [sw.lng(), sw.lat(), ne.lng(), ne.lat()];
+          const rings = visibleRings(geometry, view);
+          if (!viewTouchesCoverage(geometry, rings, view)) {
+            onStatus("outside-coverage");
+            return;
+          }
+          ctx.save();
+          ctx.beginPath();
+          for (const ring of rings) {
+            ring.forEach(([lng, lat], i) => {
+              const p = proj.fromLatLngToDivPixel(new google.maps.LatLng(lat, lng));
+              if (!p) return;
+              if (i) ctx.lineTo(p.x - tl.x, p.y - tl.y);
+              else ctx.moveTo(p.x - tl.x, p.y - tl.y);
+            });
+            ctx.closePath();
+          }
+          ctx.clip("evenodd");
         }
         const r0 = Math.max(0, Math.floor((sw.lat() - originLat) / dLat)),
           r1 = Math.min(grid.meta.rows - 1, Math.floor((ne.lat() - originLat) / dLat));
@@ -138,6 +202,7 @@ export function ExposureLayer({
             }
           }
         }
+        if (geometry) ctx.restore();
         onStatus(painted ? "ready" : "empty");
       }
     }

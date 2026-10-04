@@ -1,7 +1,8 @@
 import { EXPOSURE_CONFIG as C, EXPOSURE_SCALE } from "@/config/exposureConfig";
 import { samplePath } from "./geo";
+import { isPathInsideCoverage, type CoverageGeoJSON } from "./nycCoverage";
 import type { RiskGrid, RiskCell, TravelMode } from "@/types/risk";
-import type { CandidateRoute, Hotspot, Recommendation, ScoredRoute } from "@/types/route";
+import type { CandidateRoute, Hotspot, LatLng, Recommendation, ScoredRoute } from "@/types/route";
 
 export function cellKey(grid: RiskGrid, lat: number, lon: number) {
   const { originLat, originLon, cellSizeM } = grid.meta;
@@ -161,6 +162,16 @@ export function recommend(
   };
 }
 
+// Cached candidates are re-scored on every hour/budget change; polygon checks depend only on path.
+const polygonCoverageCache = new WeakMap<CoverageGeoJSON, WeakMap<LatLng[], boolean>>();
+function pathInsidePolygons(path: LatLng[], geometry: CoverageGeoJSON) {
+  let byPath = polygonCoverageCache.get(geometry);
+  if (!byPath) polygonCoverageCache.set(geometry, (byPath = new WeakMap()));
+  let inside = byPath.get(path);
+  if (inside === undefined) byPath.set(path, (inside = isPathInsideCoverage(path, geometry)));
+  return inside;
+}
+
 /** Every sampled segment and endpoint must lie inside the documented coverage. */
 export function routeCoverage(
   route: CandidateRoute,
@@ -168,6 +179,8 @@ export function routeCoverage(
   mode: TravelMode,
 ): ScoredRoute["coverage"] {
   if (!grid || grid.isDemo) return "unavailable";
+  // A guarded grid without its loaded polygon mask must not score anything.
+  if (grid.meta.requiresPolygonCoverageGuard && !grid.coverageGeometry) return "unavailable";
   if (!grid.meta.modes.includes(mode)) return "unsupported-mode";
   const m = grid.meta;
   const scale = 111320 * Math.cos(((m.projectionLatitude ?? m.originLat) * Math.PI) / 180);
@@ -183,6 +196,12 @@ export function routeCoverage(
     route.path.length < 2 ||
     !route.path.every(inside) ||
     !samplePath(route.path, C.sampleSpacingM).every((s) => inside(s.p))
+  )
+    return "outside-coverage";
+  // Whole segments, not just samples: a path can leave and re-enter between covered points.
+  if (
+    grid.meta.requiresPolygonCoverageGuard &&
+    !pathInsidePolygons(route.path, grid.coverageGeometry!)
   )
     return "outside-coverage";
   return "covered";

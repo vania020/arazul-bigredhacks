@@ -6,7 +6,8 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist", ".output", ".vinxi"] },
+  // arazul-nyc-conversion/ is an accidental duplicate of the NYC package, not application source.
+  { ignores: ["dist", ".output", ".vinxi", "arazul-nyc-conversion"] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],

@@ -706,9 +706,11 @@ export function AppShell() {
               ? t("zoomHint")
               : heatmapStatus === "outside-coverage"
                 ? heatmapText.outside
-                : heatmapText.empty}
+                : heatmapStatus === "unavailable"
+                  ? heatmapText.unavailable
+                  : heatmapText.empty}
           </p>
-          {heatmapStatus === "zoom-in" ? (
+          {heatmapStatus === "unavailable" ? null : heatmapStatus === "zoom-in" ? (
             <button
               type="button"
               className="min-h-9 font-semibold text-primary underline"

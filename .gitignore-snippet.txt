@@ -1,0 +1,4 @@
+# Keep complaint snapshots and normalized incident-level files local.
+/private-data/nyc/
+__pycache__/
+*.pyc

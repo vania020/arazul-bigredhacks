@@ -4,10 +4,10 @@ import type { ComponentProps } from "react";
 import { ExposureLayer } from "@/map/ExposureLayer";
 import { validateRiskGrid } from "@/services/riskDataService";
 import type { RiskCell, RiskGrid } from "@/types/risk";
-import nycAsset from "../../public/data/nyc.json";
 import chicagoAsset from "../../public/data/chicago.json";
 import sfAsset from "../../public/data/san-francisco.json";
 import londonAsset from "../../public/data/london.json";
+import { nycNative, nycNativeAsset } from "./nycFixtures";
 
 type Props = ComponentProps<typeof ExposureLayer>;
 type Bounds = [west: number, south: number, east: number, north: number];
@@ -47,12 +47,23 @@ function mapFixture(initialBounds: Bounds = [-0.001, -0.001, 0.011, 0.011]) {
     clientHeight: { value: 1200 },
   });
   const paints: { alpha: number; color: string; x: number; y: number; w: number; h: number }[] = [];
+  // Canvas calls in order, so tests can check that fills happen inside a clip.
+  const calls: string[] = [];
+  const clipPath: [number, number][] = [];
   const ctx = {
     globalAlpha: 1,
     fillStyle: "",
     setTransform: vi.fn(),
     clearRect: vi.fn(),
+    save: vi.fn(() => calls.push("save")),
+    restore: vi.fn(() => calls.push("restore")),
+    beginPath: vi.fn(() => clipPath.splice(0)),
+    moveTo: vi.fn((x: number, y: number) => clipPath.push([x, y])),
+    lineTo: vi.fn((x: number, y: number) => clipPath.push([x, y])),
+    closePath: vi.fn(),
+    clip: vi.fn((rule: string) => calls.push(`clip:${rule}`)),
     fillRect(x: number, y: number, w: number, h: number) {
+      calls.push("fill");
       paints.push({ alpha: this.globalAlpha, color: this.fillStyle, x, y, w, h });
     },
   };
@@ -121,6 +132,8 @@ function mapFixture(initialBounds: Bounds = [-0.001, -0.001, 0.011, 0.011]) {
     pane,
     paints,
     ctx,
+    calls,
+    clipPath,
     detach,
     removals,
     setZoom: (value: number) => {
@@ -193,7 +206,6 @@ describe("exposure heatmap rendering", () => {
   });
 
   it.each([
-    ["nyc", nycAsset],
     ["chicago", chicagoAsset],
     ["san-francisco", sfAsset],
     ["london", londonAsset],
@@ -205,6 +217,60 @@ describe("exposure heatmap rendering", () => {
     expect(f.paints.every((paint) => paint.alpha >= 0.25 && paint.alpha <= 1)).toBe(true);
     expect(f.paints.every((paint) => colors.includes(paint.color))).toBe(true);
     expect(view.props.onStatus).toHaveBeenLastCalledWith("ready");
+    expect(f.ctx.clip).not.toHaveBeenCalled(); // Unguarded cities keep their rectangular overlay.
+  });
+
+  it("clips the published NYC dataset to its borough polygons before painting", () => {
+    const data = nycNative();
+    const f = mapFixture([-74.03, 40.7, -73.96, 40.78]); // Lower/Midtown Manhattan and the Hudson
+    const view = mount(f, { grid: data });
+    expect(f.paints.length).toBeGreaterThan(0);
+    expect(f.paints.every((paint) => colors.includes(paint.color))).toBe(true);
+    expect(view.props.onStatus).toHaveBeenLastCalledWith("ready");
+    const first = f.calls.indexOf("fill");
+    expect(f.calls.slice(0, first)).toEqual(["save", "clip:evenodd"]);
+    expect(f.calls.at(-1)).toBe("restore");
+    expect(f.calls.filter((c) => c === "save")).toHaveLength(1);
+    // The clip outline is the official polygon, projected to the canvas.
+    const tl = { x: -74.03 * 100000, y: -40.78 * 100000 };
+    const vertices = data.coverageGeometry!.features.flatMap((feature) =>
+      (feature.geometry.type === "Polygon"
+        ? [feature.geometry.coordinates]
+        : feature.geometry.coordinates
+      ).flat(2),
+    );
+    const projected = new Set(
+      vertices.map(([lng, lat]) => `${lng! * 100000 - tl.x},${-lat! * 100000 - tl.y}`),
+    );
+    expect(f.clipPath.length).toBeGreaterThan(0);
+    expect(f.clipPath.every(([x, y]) => projected.has(`${x},${y}`))).toBe(true);
+  });
+
+  it("paints nothing over New Jersey inside the NYC bounding rectangle", () => {
+    const data = nycNative();
+    const [w, s, e, n] = data.meta.coverageBounds!;
+    const jerseyCity: Bounds = [-74.075, 40.71, -74.045, 40.73];
+    expect(jerseyCity[0] > w && jerseyCity[2] < e && jerseyCity[1] > s && jerseyCity[3] < n).toBe(
+      true,
+    );
+    const f = mapFixture(jerseyCity);
+    const view = mount(f, { grid: data });
+    expect(f.paints).toHaveLength(0);
+    expect(view.props.onStatus).toHaveBeenLastCalledWith("outside-coverage");
+  });
+
+  it("hides a polygon-guarded overlay whose boundary did not load", () => {
+    const { coverageGeometry: _missing, ...unguarded } = nycNative();
+    const f = mapFixture([-74.03, 40.7, -73.96, 40.78]);
+    const view = mount(f, { grid: unguarded });
+    expect(f.paints).toHaveLength(0);
+    expect(view.props.onStatus).toHaveBeenLastCalledWith("unavailable");
+  });
+
+  it("keeps displayScale a rendering factor for NYC: stored values stay in [0,1]", () => {
+    const data = nycNative();
+    expect(data.meta.displayScale).toBe(24);
+    expect(data.cells).toEqual(nycNativeAsset().cells);
   });
 
   it("restricts route scope to its corridor and restores distant cells in city scope", () => {
