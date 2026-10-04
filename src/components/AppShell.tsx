@@ -38,6 +38,8 @@ import type { LatLng, ScoredRoute } from "@/types/route";
 import { CITIES } from "@/config/cities";
 import { useCity } from "@/context/CityContext";
 import { NavigationSession } from "./navigation/NavigationSession";
+import { NavigationErrorBoundary } from "./navigation/NavigationErrorBoundary";
+import { navigationCopy } from "@/i18n/navigation";
 import type { NavTrip } from "@/navigation/useNavigation";
 import { routeLanguage, unitsForCountry } from "@/navigation/format";
 import { primeSpeech } from "@/navigation/voice";
@@ -615,20 +617,26 @@ export function AppShell() {
         />
       )}
       {map && navTrip && (
-        <NavigationSession
-          map={map}
-          trip={navTrip}
-          grid={grid}
-          units={unitsForCountry(city.countryCode)}
-          isMobile={isMobile}
-          onRouteChange={setNavRoute}
-          exposureLayer={{
-            available: canShowLayer,
-            on: canShowLayer && layer !== "off",
-            toggle: () => setLayer((l) => (l === "off" ? "route" : "off")),
-          }}
+        <NavigationErrorBoundary
+          message={navigationCopy[lang].crashed}
+          endLabel={navigationCopy[lang].end}
           onEnd={onEndNavigation}
-        />
+        >
+          <NavigationSession
+            map={map}
+            trip={navTrip}
+            grid={grid}
+            units={unitsForCountry(city.countryCode)}
+            isMobile={isMobile}
+            onRouteChange={setNavRoute}
+            exposureLayer={{
+              available: canShowLayer,
+              on: canShowLayer && layer !== "off",
+              toggle: () => setLayer((l) => (l === "off" ? "route" : "off")),
+            }}
+            onEnd={onEndNavigation}
+          />
+        </NavigationErrorBoundary>
       )}
       {map &&
         rec &&

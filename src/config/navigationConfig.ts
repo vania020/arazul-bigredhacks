@@ -6,7 +6,8 @@ import type { TravelMode } from "@/types/risk";
  * Accuracy values are the browser's 68% confidence radius (GeolocationCoordinates.accuracy).
  */
 export const NAVIGATION_CONFIG = {
-  geolocation: { enableHighAccuracy: true, maximumAge: 2000, timeout: 20000 },
+  /** maximumAge 0: never accept a cached reading (it could be from before this trip started). */
+  geolocation: { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 },
   /** Readings worse than this are drawn as "weak GPS" but never move progress or count off-route. */
   maxTrustedAccuracyM: 50,
   /** Readings worse than this are ignored for matching entirely (cell-tower / Wi-Fi guesses). */
@@ -52,6 +53,12 @@ export const NAVIGATION_CONFIG = {
     manualCooldownMs: 20000,
     manualMaxPerSession: 3,
   },
+  /**
+   * Routes without Google steps: one request through this many via points taken from Arazul's
+   * geometry (kept ≤ 10: more intermediates move Routes API requests to a higher billing tier),
+   * accepted only if Google's path stays within this mean deviation of Arazul's.
+   */
+  stepsFallback: { viaPoints: 8, maxMeanDeviationM: 35 },
   /** If the first trusted fix is farther than this from the route, plan from the device location. */
   startJoinM: { walking: 60, driving: 120 } satisfies Record<TravelMode, number>,
   arrival: {

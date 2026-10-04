@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-libra
 import { useEffect } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AppShell } from "@/components/AppShell";
+import { NavigationErrorBoundary } from "@/components/navigation/NavigationErrorBoundary";
 import { CityProvider } from "@/context/CityContext";
 import { I18nProvider } from "@/i18n";
 import type { CandidateRoute, LatLng } from "@/types/route";
@@ -109,6 +110,7 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("in-app navigation start", () => {
@@ -145,5 +147,51 @@ describe("in-app navigation start", () => {
     expect(geolocation.clearWatch).toHaveBeenCalledWith(7);
     expect(mocks.marker.remove).toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Start navigation" })).toBeInTheDocument();
+  });
+
+  it("asks Google for steps on the same geometry when the route has none", async () => {
+    const { steps: _steps, ...geometryOnly } = route;
+    // AppShell's route cache is shared per 5-minute window: move to a fresh window.
+    const now = Date.now() + 3_600_000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+    mocks.computeRoutes
+      .mockReset()
+      .mockResolvedValueOnce([geometryOnly]) // planning search: no steps
+      .mockResolvedValueOnce([{ ...route, id: "google-steps" }]); // via-waypoint request
+    render(
+      <I18nProvider>
+        <CityProvider>
+          <AppShell />
+        </CityProvider>
+      </I18nProvider>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Try a demo trip/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Find routes/ }));
+    fireEvent.click(await screen.findByRole("button", { name: "Start navigation" }));
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Head north on Rua A" })).toBeInTheDocument(),
+    );
+    expect(mocks.computeRoutes).toHaveBeenCalledTimes(2);
+    const [q] = mocks.computeRoutes.mock.calls[1]!;
+    expect(q.intermediates).toHaveLength(8);
+    expect(q.alternatives).toBe(false);
+  });
+});
+
+describe("navigation error boundary", () => {
+  it("contains a navigation crash and lets the user end the session", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const onEnd = vi.fn();
+    const Broken = () => {
+      throw new Error("boom");
+    };
+    render(
+      <NavigationErrorBoundary message="Navigation stopped" endLabel="End navigation" onEnd={onEnd}>
+        <Broken />
+      </NavigationErrorBoundary>,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent("Navigation stopped");
+    fireEvent.click(screen.getByRole("button", { name: "End navigation" }));
+    expect(onEnd).toHaveBeenCalledTimes(1);
   });
 });

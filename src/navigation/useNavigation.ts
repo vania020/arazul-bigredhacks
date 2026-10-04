@@ -11,6 +11,7 @@ import { buildNavRoute, type NavRoute } from "./navRoute";
 import { describeFailure, planReroute, RerouteError, type RoutePreference } from "./reroute";
 import { initialTracker, updateTracker, type Fix, type Progress } from "./tracker";
 import { useGeolocationWatch, type GeoErrorKind } from "./useGeolocation";
+import { fetchStepsFor } from "./stepsFallback";
 import { nextVoicePrompt, speak, speechSupported, stopSpeech } from "./voice";
 import { routeLanguage, speechLanguage, spokenDistance, type Units } from "./format";
 
@@ -281,6 +282,37 @@ export function useNavigation({ map, trip, grid, lang, units, onRouteChange }: O
       window.clearTimeout(noticeTimer.current);
       stopSpeech();
     };
+  }, []);
+
+  // An Arazul route without Google steps: ask Google for instructions on this same geometry
+  // (via waypoints). One request per session; the ref also absorbs StrictMode's effect replay.
+  const stepsRequested = useRef(false);
+  useEffect(() => {
+    const start = activeRef.current;
+    if (start.nav.hasGoogleSteps || stepsRequested.current) return;
+    stepsRequested.current = true;
+    fetchStepsFor(start.scored, mode, routeLanguage(lang))
+      .then((withSteps) => {
+        // Ignore if navigation ended or a reroute already replaced the route.
+        if (!withSteps || !alive.current || activeRef.current !== start) return;
+        const next: ActiveRoute = {
+          ...start,
+          scored: withSteps,
+          nav: buildNavRoute(withSteps, copy.follow),
+          version: start.version + 1,
+        };
+        activeRef.current = next;
+        setActive(next);
+        tracker.current = initialTracker();
+        onRouteChange(withSteps);
+        if (lastGoodFix.current) handleFix(lastGoodFix.current, true);
+      })
+      .catch((e: unknown) =>
+        console.warn("[ARAZUL navigation] Could not get steps for the selected route", {
+          failure: describeFailure(e),
+        }),
+      );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Marker, initial framing, map controls and manual-pan detection; all undone on exit.

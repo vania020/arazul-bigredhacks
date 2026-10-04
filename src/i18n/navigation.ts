@@ -14,6 +14,8 @@ const en = {
   insecure: "Location needs a secure page (https:// or localhost).",
   retry: "Try again",
   end: "End navigation",
+  crashed:
+    "Navigation stopped because of an unexpected problem. Your planned routes are still available.",
   recalculating: "Recalculating route…",
   rerouted: "Route updated · {pref}",
   rerouteFailed: "Couldn't recalculate the route. Retrying shortly.",
@@ -84,6 +86,8 @@ const pt: NavCopy = {
   insecure: "A localização exige uma página segura (https:// ou localhost).",
   retry: "Tentar de novo",
   end: "Encerrar navegação",
+  crashed:
+    "A navegação parou por um problema inesperado. Suas rotas planejadas continuam disponíveis.",
   recalculating: "Recalculando rota…",
   rerouted: "Rota atualizada · {pref}",
   rerouteFailed: "Não foi possível recalcular a rota. Tentaremos de novo em breve.",
@@ -153,6 +157,8 @@ const es: NavCopy = {
   insecure: "La ubicación requiere una página segura (https:// o localhost).",
   retry: "Reintentar",
   end: "Terminar navegación",
+  crashed:
+    "La navegación se detuvo por un problema inesperado. Tus rutas planificadas siguen disponibles.",
   recalculating: "Recalculando ruta…",
   rerouted: "Ruta actualizada · {pref}",
   rerouteFailed: "No se pudo recalcular la ruta. Lo intentaremos de nuevo en breve.",

@@ -10,6 +10,7 @@ import { initialTracker, updateTracker, type Fix, type TrackerState } from "@/na
 import { nextVoicePrompt } from "@/navigation/voice";
 import { describeFailure, planReroute, RerouteError, rejoinWaypoints } from "@/navigation/reroute";
 import { formatDistance } from "@/navigation/format";
+import { fetchStepsFor, viaPointsAlong } from "@/navigation/stepsFallback";
 import { cellKey } from "@/services/exposureService";
 import { samplePath } from "@/services/geo";
 
@@ -413,5 +414,46 @@ describe("preference-preserving reroute", () => {
     await expect(
       planReroute({ ...base, preference: "fastest", previous: fast }),
     ).rejects.toMatchObject({ code: "NO_ROUTE" });
+  });
+});
+
+describe("steps fallback for routes without Google steps", () => {
+  const { steps: _s, ...rest } = lRoute;
+  const geometryOnly: CandidateRoute = rest;
+
+  beforeEach(() => {
+    mocks.computeRoutes.mockReset();
+  });
+
+  it("spreads via waypoints evenly along Arazul's geometry", () => {
+    const vias = viaPointsAlong(lRoute.path, 2);
+    expect(vias).toHaveLength(2);
+    expect(vias[0]!.lat).toBeCloseTo(at(200).lat, 4); // 1/3 of 600 m
+    expect(vias[1]!.lng).toBeCloseTo(at(300, 100).lng, 4); // 2/3 of 600 m
+  });
+
+  it("takes Google's steps when Google follows the same geometry", async () => {
+    mocks.computeRoutes.mockResolvedValue([{ ...lRoute, id: "g" }]);
+    const result = await fetchStepsFor(geometryOnly, "walking", "en");
+    expect(result?.id).toBe("L"); // Arazul's route identity is kept
+    expect(result?.steps?.[1]?.instruction).toContain("Turn right onto Rua B");
+    const [q] = mocks.computeRoutes.mock.calls[0]!;
+    expect(q).toMatchObject({ alternatives: false, mode: "walking" });
+    expect(q.intermediates).toHaveLength(8);
+  });
+
+  it("rejects a Google route that leaves Arazul's geometry", async () => {
+    const elsewhere: CandidateRoute = {
+      ...lRoute,
+      id: "g",
+      path: [at(0), at(0, -400), at(300, -400), at(300, 300)],
+    };
+    mocks.computeRoutes.mockResolvedValue([elsewhere]);
+    expect(await fetchStepsFor(geometryOnly, "walking")).toBeNull();
+  });
+
+  it("returns null when Google still sends no steps", async () => {
+    mocks.computeRoutes.mockResolvedValue([{ ...geometryOnly, id: "g" }]);
+    expect(await fetchStepsFor(geometryOnly, "walking")).toBeNull();
   });
 });
