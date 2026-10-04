@@ -38,6 +38,10 @@
   --color-text-secondary: var(--text-secondary);
   --color-route-recommended: var(--route-recommended);
   --color-route-fastest: var(--route-fastest);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-pin: var(--pin);
+  --color-surface: var(--surface);
   --color-exp-1: var(--exp-1);
   --color-exp-2: var(--exp-2);
   --color-exp-3: var(--exp-3);
@@ -47,33 +51,41 @@
 }
 
 :root {
-  --radius: 1rem;
-  --background: #f7fafc;
-  --foreground: #172b4d;
-  --card: #ffffff;
-  --card-foreground: #172b4d;
-  --popover: #ffffff;
-  --popover-foreground: #172b4d;
-  --primary: #2f80ed;
+  /* Arazul design system — brand */
+  --radius: 1.125rem;
+  --primary: #1d6ff2; /* Arazul blue */
   --primary-foreground: #ffffff;
-  --secondary: #eaf5ff;
-  --secondary-foreground: #0d3b66;
-  --muted: #eef3f8;
-  --muted-foreground: #7c8e9e;
-  --accent: #eaf5ff;
-  --accent-foreground: #0d3b66;
-  --destructive: #d94b64;
+  --deep: #0b2c5a; /* dark navy: headings, strong UI */
+  --navy: #081d3d;
+  --sky: #7cc4ff;
+  --sky-soft: #eaf2ff;
+  /* neutrals */
+  --background: #f3f6fb;
+  --surface: #f7f9fc; /* tiles inside cards */
+  --foreground: #0f2747;
+  --card: #ffffff;
+  --card-foreground: #0f2747;
+  --popover: #ffffff;
+  --popover-foreground: #0f2747;
+  --secondary: #eaf2ff;
+  --secondary-foreground: #0b2c5a;
+  --muted: #eef2f8;
+  --muted-foreground: #74849a;
+  --accent: #eaf2ff;
+  --accent-foreground: #0b2c5a;
+  --text-secondary: #56677d;
+  --border: #e1e8f2;
+  --input: #e1e8f2;
+  --ring: #1d6ff2;
+  /* status */
+  --destructive: #d6455d;
   --destructive-foreground: #ffffff;
-  --border: #d9e5f0;
-  --input: #d9e5f0;
-  --ring: #2f80ed;
-  --deep: #0d3b66;
-  --navy: #102a43;
-  --sky: #7cc8ff;
-  --sky-soft: #eaf5ff;
-  --text-secondary: #52677a;
-  --route-recommended: #2f80ed;
-  --route-fastest: #8a98a8;
+  --success: #17804a; /* "lower exposure" change (always paired with text/arrow) */
+  --success-soft: #e5f5eb;
+  --pin: #e5484d; /* destination marker */
+  /* map */
+  --route-recommended: #1d6ff2;
+  --route-fastest: #8796a8;
   --route-other: #b9c6d3;
   --route-halo: #ffffff;
   --exp-1: #ddf3ff;
@@ -82,8 +94,9 @@
   --exp-4: #f78c6b;
   --exp-5: #d94b64;
   --exp-6: #8e3b5d;
-  --shadow-soft: 0 1px 2px rgb(16 42 67 / 0.06), 0 8px 24px -8px rgb(16 42 67 / 0.12);
-  --shadow-float: 0 12px 40px -12px rgb(13 59 102 / 0.28);
+  /* elevation */
+  --shadow-soft: 0 1px 2px rgb(15 39 71 / 0.05), 0 6px 20px -8px rgb(15 39 71 / 0.14);
+  --shadow-float: 0 18px 44px -16px rgb(11 44 90 / 0.32), 0 2px 6px rgb(11 44 90 / 0.06);
 }
 
 @layer base {
@@ -100,6 +113,7 @@
 
 @utility shadow-soft { box-shadow: var(--shadow-soft); }
 @utility shadow-float { box-shadow: var(--shadow-float); }
+@utility shadow-card { box-shadow: var(--shadow-soft); }
 @utility glass {
   background: color-mix(in oklab, var(--card) 86%, transparent);
   backdrop-filter: blur(14px);
@@ -129,14 +143,15 @@
   font: 800 14px var(--font-display);
   box-shadow: var(--shadow-soft);
 }
-.route-endpoint-start .route-endpoint-badge { background: var(--primary); }
+.route-endpoint-start .route-endpoint-badge { background: var(--primary); box-shadow: 0 0 0 4px color-mix(in oklab, var(--primary) 22%, transparent), var(--shadow-soft); }
+.route-endpoint-end .route-endpoint-badge { background: var(--pin); }
 .route-endpoint-caption-open { max-width: 240px; white-space: normal; text-align: center; font-weight: 600 !important; }
 .route-endpoint-caption {
   border: 1px solid var(--border);
-  border-radius: 5px;
+  border-radius: 999px;
   background: var(--card);
   color: var(--foreground);
-  padding: 2px 6px;
+  padding: 3px 9px;
   font: 700 11px var(--font-sans);
   box-shadow: var(--shadow-soft);
 }

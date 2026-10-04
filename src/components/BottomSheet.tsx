@@ -7,7 +7,12 @@ export function BottomSheet({
   onSnap,
   onHeight,
   children,
+  halfRatio = 0.52,
+  peek,
 }: {
+  /** Shown instead of the content while collapsed (the content stays mounted). */
+  peek?: ReactNode;
+  halfRatio?: number;
   snap: Snap;
   onSnap: (s: Snap) => void;
   onHeight: (h: number) => void;
@@ -24,7 +29,7 @@ export function BottomSheet({
   }, []);
   const heights: Record<Snap, number> = {
     collapsed: 132,
-    half: Math.round(vh * 0.52),
+    half: Math.round(vh * halfRatio),
     expanded: Math.round(vh * 0.9),
   };
   const h = drag ?? heights[snap];
@@ -43,7 +48,7 @@ export function BottomSheet({
 
   return (
     <section
-      className="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-3xl border-t bg-card shadow-float"
+      className="absolute inset-x-0 bottom-0 z-20 flex flex-col rounded-t-[28px] border-t bg-card shadow-float"
       style={{
         height: h,
         transition: drag === null ? "height .28s cubic-bezier(.2,.8,.2,1)" : "none",
@@ -74,9 +79,14 @@ export function BottomSheet({
         }}
         className="flex h-8 w-full shrink-0 touch-none items-center justify-center"
       >
-        <span className="h-1.5 w-12 rounded-full bg-border" />
+        <span className="h-1.5 w-11 rounded-full bg-border" />
       </button>
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-6">{children}</div>
+      {peek && snap === "collapsed" && drag === null && <div className="px-4 pb-4">{peek}</div>}
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto px-4 pb-6 ${peek && snap === "collapsed" && drag === null ? "hidden" : ""}`}
+      >
+        {children}
+      </div>
     </section>
   );
 }

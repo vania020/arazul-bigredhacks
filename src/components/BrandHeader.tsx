@@ -22,31 +22,67 @@ export function ArazulLogo({ className = "h-9 w-9" }: { className?: string }) {
   );
 }
 
-export function BrandHeader() {
+/**
+ * Compact brand bar: mark + wordmark, language switch and an optional help button.
+ * `tagline` adds the one-line product description (inline in the desktop top bar).
+ */
+export function BrandHeader({
+  onHelp,
+  helpLabel,
+  tagline,
+  actions,
+}: {
+  actions?: React.ReactNode;
+  onHelp?: () => void;
+  helpLabel?: string;
+  /** "inline" beside the wordmark (desktop top bar) or "below" it. */
+  tagline?: "inline" | "below";
+}) {
   const { lang, setLang, t } = useI18n();
   return (
-    <header className="flex items-center gap-3">
-      <ArazulLogo />
-      <div className="min-w-0 flex-1">
-        <p className="font-display text-xl font-extrabold tracking-[0.12em] text-deep">ARAZUL</p>
-        <p className="text-xs leading-snug text-text-secondary sm:text-sm">{t("tagline")}</p>
-      </div>
-      <div
-        role="group"
-        aria-label="Language"
-        className="flex rounded-full border bg-card p-0.5 text-xs font-semibold"
-      >
-        {(["en", "pt", "es"] as Lang[]).map((l) => (
+    <header>
+      <div className="flex items-center gap-2">
+        <ArazulLogo className="h-8 w-8 shrink-0 drop-shadow-sm min-[380px]:h-9 min-[380px]:w-9" />
+        <div className="flex min-w-0 flex-1 items-baseline gap-3">
+          <p className="font-display text-base font-extrabold leading-none tracking-[0.14em] text-deep min-[380px]:text-lg min-[380px]:tracking-[0.18em]">
+            ARAZUL
+          </p>
+          {tagline === "inline" && (
+            <p className="hidden truncate text-sm text-text-secondary md:block">{t("tagline")}</p>
+          )}
+        </div>
+        <div
+          role="group"
+          aria-label="Language"
+          className="flex rounded-full border bg-card p-0.5 text-[11px] font-bold shadow-soft"
+        >
+          {(["en", "pt", "es"] as Lang[]).map((l) => (
+            <button
+              key={l}
+              onClick={() => setLang(l)}
+              aria-pressed={lang === l}
+              className={`h-8 min-w-7 rounded-full px-1 uppercase min-[380px]:min-w-8 min-[380px]:px-1.5 transition-colors ${lang === l ? "bg-deep text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
+            >
+              {l}
+            </button>
+          ))}
+        </div>
+        {actions}
+        {onHelp && (
           <button
-            key={l}
-            onClick={() => setLang(l)}
-            aria-pressed={lang === l}
-            className={`h-9 min-w-9 rounded-full px-2 uppercase transition-colors ${lang === l ? "bg-deep text-primary-foreground" : "text-text-secondary hover:text-foreground"}`}
+            type="button"
+            onClick={onHelp}
+            aria-label={helpLabel}
+            title={helpLabel}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border bg-card font-display text-base font-extrabold text-deep shadow-soft hover:bg-secondary"
           >
-            {l}
+            ?
           </button>
-        ))}
+        )}
       </div>
+      {tagline === "below" && (
+        <p className="mt-2 text-xs leading-snug text-text-secondary">{t("tagline")}</p>
+      )}
     </header>
   );
 }

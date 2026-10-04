@@ -31,7 +31,8 @@ export function MapView({
           clickableIcons: false,
           disableDefaultUI: true,
           zoomControl: true,
-          zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_TOP },
+          // Right-centre keeps zoom clear of the floating header and the route sheet.
+          zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_CENTER },
           gestureHandling: "greedy",
         });
         onReady(map);

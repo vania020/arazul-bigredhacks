@@ -21,6 +21,8 @@ interface Props {
   startedAt: number;
   arrivedAt: number | null;
   isMobile: boolean;
+  /** Desktop: rendered inside the side panel (Recenter then floats on the map). */
+  docked?: boolean;
   following: boolean;
   onRecenter: () => void;
   voice: { supported: boolean; muted: boolean; toggle: () => void };
@@ -83,6 +85,7 @@ export function NavigationPanel({
   startedAt,
   arrivedAt,
   isMobile,
+  docked = false,
   following,
   onRecenter,
   voice,
@@ -101,20 +104,22 @@ export function NavigationPanel({
       : 0;
   const ownExposureOnly = !active.comparable && scored.coverage === "covered";
   const arrived = status === "arrived";
-  const shell = isMobile
-    ? "inset-x-0 bottom-0 rounded-t-3xl border-t pb-[max(1rem,env(safe-area-inset-bottom))]"
-    : "bottom-4 left-4 w-[420px] rounded-2xl border";
+  const shell = docked
+    ? "relative rounded-3xl border pb-4 shadow-soft"
+    : isMobile
+      ? "absolute z-20 inset-x-0 bottom-0 rounded-t-[28px] border-t pb-[max(1rem,env(safe-area-inset-bottom))] shadow-float"
+      : "absolute z-20 bottom-5 left-5 w-[420px] rounded-3xl border pb-4 shadow-float";
 
   return (
-    <section
-      aria-label={prefLabel}
-      className={`absolute z-20 bg-card px-4 pt-4 shadow-float ${shell} ${isMobile ? "" : "pb-4"}`}
-    >
-      {!following && !arrived && status !== "error" && (
+    <section aria-label={prefLabel} className={`bg-card px-4 pt-3 ${shell}`}>
+      {isMobile && !docked && (
+        <span aria-hidden className="mx-auto mb-2 block h-1.5 w-11 rounded-full bg-border" />
+      )}
+      {!docked && !following && !arrived && status !== "error" && (
         <button
           type="button"
           onClick={onRecenter}
-          className="absolute -top-16 right-3 flex h-12 items-center gap-2 rounded-full bg-card px-4 text-sm font-bold text-primary shadow-float"
+          className="absolute -top-16 right-3 flex h-12 items-center gap-2 rounded-full border bg-card px-4 text-sm font-bold text-primary shadow-float"
         >
           <LocateFixed aria-hidden className="h-5 w-5" />
           {copy.recenter}
@@ -131,7 +136,7 @@ export function NavigationPanel({
         <dl className="grid grid-cols-3 gap-2">
           <div>
             <dt className="sr-only">{copy.remaining}</dt>
-            <dd className="font-display text-3xl font-extrabold leading-none text-primary">
+            <dd className="font-display text-4xl font-extrabold leading-none tracking-tight text-foreground">
               {durationText(remainingSec)}
             </dd>
           </div>
@@ -146,7 +151,7 @@ export function NavigationPanel({
         </dl>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <span className="rounded bg-secondary px-2.5 py-1 text-xs font-bold uppercase text-primary">
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs font-bold text-primary">
           {prefLabel}
         </span>
         <span className="text-xs font-semibold text-text-secondary">
@@ -160,7 +165,7 @@ export function NavigationPanel({
       <p className="mt-1 truncate text-sm text-foreground">
         {fill(copy.to, { place: destination })}
       </p>
-      <details className="group mt-2 rounded-xl border px-3 py-2">
+      <details className="group mt-3 rounded-2xl bg-surface px-3 py-2">
         <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between text-sm font-semibold">
           {copy.why}
           <ChevronDown aria-hidden className="h-4 w-4 transition-transform group-open:rotate-180" />
@@ -177,7 +182,7 @@ export function NavigationPanel({
         <button
           type="button"
           onClick={onEnd}
-          className={`h-12 flex-1 rounded-xl text-base font-bold shadow-soft ${arrived ? "bg-primary text-primary-foreground hover:bg-deep" : "bg-destructive text-destructive-foreground"}`}
+          className={`h-14 flex-1 rounded-2xl font-display text-base font-bold shadow-soft ${arrived ? "bg-primary text-primary-foreground hover:bg-deep" : "bg-destructive text-destructive-foreground hover:opacity-90"}`}
         >
           {arrived ? copy.done : copy.end}
         </button>
@@ -193,7 +198,7 @@ export function NavigationPanel({
             title={
               !voice.supported ? copy.voiceUnsupported : voice.muted ? copy.voiceOff : copy.voiceOn
             }
-            className="grid h-12 w-12 place-items-center rounded-xl border text-deep disabled:opacity-40"
+            className="grid h-14 w-14 place-items-center rounded-2xl border bg-card text-deep hover:bg-secondary disabled:opacity-40"
           >
             {voice.muted || !voice.supported ? (
               <VolumeX aria-hidden className="h-5 w-5" />
@@ -209,7 +214,7 @@ export function NavigationPanel({
             aria-pressed={exposureLayer.on}
             aria-label={copy.exposureLayer}
             title={copy.exposureLayer}
-            className={`grid h-12 w-12 place-items-center rounded-xl border ${exposureLayer.on ? "bg-primary text-primary-foreground" : "text-deep"}`}
+            className={`grid h-14 w-14 place-items-center rounded-2xl border ${exposureLayer.on ? "border-primary bg-primary text-primary-foreground" : "bg-card text-deep hover:bg-secondary"}`}
           >
             <Layers aria-hidden className="h-5 w-5" />
           </button>

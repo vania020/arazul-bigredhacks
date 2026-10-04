@@ -54,12 +54,12 @@ function TripToolsControls(props: TripToolsProps) {
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return (
-    <section className="space-y-2 rounded-lg border p-3">
+    <section className="space-y-2">
       <div className="flex flex-wrap gap-2">
-        <Button variant="outline" onClick={share}>
+        <Button variant="outline" className="h-11 rounded-2xl" onClick={share}>
           {t.share}
         </Button>
-        <Button variant="outline" onClick={download}>
+        <Button variant="outline" className="h-11 rounded-2xl" onClick={download}>
           {t.download}
         </Button>
       </div>

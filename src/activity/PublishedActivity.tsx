@@ -81,7 +81,7 @@ export function PublishedActivity({
   const { source, feed } = state;
   return (
     <section
-      className="rounded-xl border border-border bg-card p-3 text-xs space-y-2"
+      className="space-y-2 rounded-2xl border border-border bg-card p-3 text-xs shadow-soft"
       aria-label={c.title}
     >
       <div className="flex items-center justify-between gap-2">
@@ -92,7 +92,7 @@ export function PublishedActivity({
           aria-checked={enabled}
           aria-label={c.title}
           onClick={onToggle}
-          className="rounded-full border border-border px-3 py-1"
+          className="min-h-9 rounded-full border border-border px-3 py-1.5 font-semibold"
         >
           {enabled ? c.on : c.off}
         </button>

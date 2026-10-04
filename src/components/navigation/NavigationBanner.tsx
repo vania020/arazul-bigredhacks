@@ -1,4 +1,5 @@
-import { Flag, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import { Macaw } from "@/components/brand/Macaw";
 import type { NavCopy } from "@/i18n/navigation";
 import { formatDistance, type Units } from "@/navigation/format";
 import type { NavRoute } from "@/navigation/navRoute";
@@ -21,6 +22,8 @@ interface Props {
   recalcReady: boolean;
   onRecalculate: () => void;
   onRetry: () => void;
+  /** Desktop: rendered inside the side panel instead of floating over the map. */
+  docked?: boolean;
 }
 
 const text = (m: Maneuver, copy: NavCopy) => (m === "arrive" ? copy.arrive : m.instruction);
@@ -41,6 +44,7 @@ export function NavigationBanner({
   recalcReady,
   onRecalculate,
   onRetry,
+  docked = false,
 }: Props) {
   // Before the first fix, preview the route's departure instruction.
   const first = nav.steps[0]!;
@@ -63,11 +67,17 @@ export function NavigationBanner({
             : null;
 
   return (
-    <div className="pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-lg flex-col gap-2">
+    <div
+      className={
+        docked
+          ? "flex flex-col gap-2"
+          : "pointer-events-none absolute inset-x-3 top-3 z-20 mx-auto flex max-w-lg flex-col gap-2"
+      }
+    >
       {fatal ? (
         <div
           role="alert"
-          className="pointer-events-auto rounded-2xl border bg-card p-4 shadow-float"
+          className="pointer-events-auto rounded-3xl border bg-card p-4 shadow-float"
         >
           <p className="font-display text-lg font-extrabold text-deep">
             {gps === "denied" ? copy.denied : gps === "insecure" ? copy.insecure : copy.unsupported}
@@ -76,7 +86,7 @@ export function NavigationBanner({
             <button
               type="button"
               onClick={onRetry}
-              className="mt-3 h-11 rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+              className="mt-3 h-12 rounded-2xl bg-primary px-5 text-sm font-semibold text-primary-foreground"
             >
               {copy.retry}
             </button>
@@ -85,24 +95,24 @@ export function NavigationBanner({
       ) : status === "arrived" ? (
         <div
           role="status"
-          className="pointer-events-auto flex items-center gap-4 rounded-2xl bg-deep p-4 text-primary-foreground shadow-float"
+          className="bubble-in pointer-events-auto flex items-center gap-3 rounded-3xl border bg-card p-3 pr-4 text-foreground shadow-float"
         >
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-xl bg-primary">
-            <Flag aria-hidden className="h-8 w-8" strokeWidth={2.5} />
-          </span>
+          <Macaw className="h-16 w-16 shrink-0" />
           <div className="min-w-0">
-            <p className="font-display text-2xl font-extrabold leading-tight">{copy.arrived}</p>
-            <p className="truncate text-sm opacity-85">{destination}</p>
+            <p className="font-display text-2xl font-extrabold leading-tight text-deep">
+              {copy.arrived}
+            </p>
+            <p className="truncate text-sm text-text-secondary">{destination}</p>
           </div>
         </div>
       ) : (
         <section
           aria-live="polite"
           aria-label={text(primary, copy)}
-          className="pointer-events-auto overflow-hidden rounded-2xl bg-deep text-primary-foreground shadow-float"
+          className="pointer-events-auto overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-deep text-primary-foreground shadow-float"
         >
           {status === "rerouting" && (
-            <p className="flex items-center gap-2 bg-sky px-4 py-2 text-sm font-bold text-deep">
+            <p className="flex items-center gap-2 bg-sky-soft px-4 py-2 text-sm font-bold text-deep">
               <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
               {copy.recalculating}
             </p>
@@ -110,7 +120,7 @@ export function NavigationBanner({
           <div
             className={`flex items-center gap-4 p-4 ${status === "rerouting" ? "opacity-50" : ""}`}
           >
-            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-xl bg-primary">
+            <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-primary-foreground/15 ring-1 ring-primary-foreground/25">
               <ManeuverIcon maneuver={icon(primary)} className="h-10 w-10" />
             </span>
             <div className="min-w-0 flex-1">
@@ -125,7 +135,7 @@ export function NavigationBanner({
             </div>
           </div>
           {then && (
-            <p className="flex items-center gap-2 border-t border-primary-foreground/15 bg-navy/60 px-4 py-2 text-sm">
+            <p className="flex items-center gap-2 border-t border-primary-foreground/15 bg-navy/35 px-4 py-2.5 text-sm">
               <span className="font-semibold opacity-80">{copy.then}</span>
               <ManeuverIcon maneuver={icon(then)} className="h-4 w-4 shrink-0" />
               <span className="truncate">{text(then, copy)}</span>
@@ -136,7 +146,7 @@ export function NavigationBanner({
       {!fatal && status !== "arrived" && gpsMessage && (
         <p
           role="status"
-          className="glass self-start rounded-full border px-3 py-1.5 text-xs font-semibold text-deep shadow-soft"
+          className="glass self-start rounded-full border px-3.5 py-2 text-xs font-semibold text-deep shadow-soft"
         >
           {gpsMessage}
         </p>
@@ -144,7 +154,7 @@ export function NavigationBanner({
       {notice && (
         <p
           role="status"
-          className="glass self-start rounded-full border px-3 py-1.5 text-xs font-semibold text-deep shadow-soft"
+          className="glass self-start rounded-full border px-3.5 py-2 text-xs font-semibold text-deep shadow-soft"
         >
           {notice}
         </p>
@@ -152,7 +162,7 @@ export function NavigationBanner({
       {(routeIssue || rerouteBlocked) && status === "navigating" && (
         <div
           role="alert"
-          className="pointer-events-auto flex items-center gap-2 self-stretch rounded-xl border bg-card px-3 py-2 text-xs text-deep shadow-soft"
+          className="pointer-events-auto flex items-center gap-2 self-stretch rounded-2xl border bg-card px-3 py-2 text-xs text-deep shadow-soft"
         >
           <span className="flex-1">{routeIssue ?? copy.rerouteLimit}</span>
           <button

@@ -25,10 +25,27 @@ export function LowerExposureOption({ options, budget, onUse }: Props) {
   return (
     <section
       aria-label={copy.title}
-      className="rounded-lg border border-dashed bg-card p-4"
+      className="fade-up rounded-3xl border-2 border-dashed border-primary/25 bg-surface p-4"
       data-testid="lower-exposure-option"
     >
-      <p className="text-xs font-bold uppercase tracking-wider text-text-secondary">{copy.title}</p>
+      <div className="flex items-center gap-2">
+        <span
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-card text-primary shadow-soft"
+          aria-hidden
+        >
+          <svg
+            viewBox="0 0 24 24"
+            className="h-4 w-4"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+          >
+            <path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 15V9a4 4 0 0 1 4-4h6M18 9v6a4 4 0 0 1-4 4H8" />
+          </svg>
+        </span>
+        <p className="text-xs font-bold uppercase tracking-wider text-deep">{copy.title}</p>
+      </div>
       <OptionRow option={featured} budget={budget} onUse={onUse} />
       <p className="mt-2 text-xs leading-relaxed text-text-secondary">{copy.tradeoff}</p>
       {more.length > 0 && (
@@ -63,23 +80,23 @@ function OptionRow({
   return (
     <div>
       <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-        <span className="font-display text-2xl font-extrabold text-foreground">
+        <span className="font-display text-3xl font-extrabold text-foreground">
           {mins(option.route.durationSec)} {t("min")}
         </span>
         <span className="text-sm font-semibold text-text-secondary">
           {fill(copy.vsFastest, { min: option.extraMin })}
         </span>
       </div>
-      <p className="text-sm font-semibold text-primary">
+      <p className="mt-1 inline-flex rounded-full bg-success-soft px-2.5 py-1 text-sm font-semibold text-success">
         {t("reducedBy", { pct: option.improvementPct })}
       </p>
-      <p className="text-xs text-text-secondary">
+      <p className="mt-2 text-xs font-medium text-text-secondary">
         {fill(copy.beyond, { over: option.overLimitMin, budget })}
       </p>
       <Button
         variant="outline"
         onClick={() => onUse(option)}
-        className="mt-2 h-11 w-full whitespace-normal rounded-md px-2 text-sm font-semibold text-deep hover:bg-secondary"
+        className="mt-3 h-12 w-full whitespace-normal rounded-2xl bg-card px-3 text-sm font-semibold text-primary hover:bg-secondary"
       >
         {fill(copy.use, { min: option.allowMin })}
       </Button>

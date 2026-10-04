@@ -11,6 +11,8 @@ export interface TimeOfDayComparisonProps {
   hour: number;
   timeZone: string;
   onHourChange: (hour: number) => void;
+  /** Inside a titled collapsible section: no outer card, visually hidden title. */
+  embedded?: boolean;
 }
 export function TimeOfDayComparison({
   route,
@@ -19,6 +21,7 @@ export function TimeOfDayComparison({
   hour,
   timeZone,
   onHourChange,
+  embedded = false,
 }: TimeOfDayComparisonProps) {
   const { lang } = useI18n();
   const copy = timeOfDayCopy[lang];
@@ -36,10 +39,10 @@ export function TimeOfDayComparison({
   return (
     <section
       aria-label={copy.title}
-      className="rounded-2xl border border-border bg-card p-4 space-y-3"
+      className={embedded ? "space-y-3" : "space-y-3 rounded-2xl border border-border bg-card p-4"}
     >
       <div>
-        <h2 className="text-sm font-semibold">{copy.title}</h2>
+        <h2 className={embedded ? "sr-only" : "text-sm font-semibold"}>{copy.title}</h2>
         <p className="text-xs text-muted-foreground">
           {copy.local} · {timeZone}
         </p>

@@ -122,8 +122,9 @@ describe("lower-exposure option outside the time budget", () => {
     );
     await waitFor(() => expect(option()).not.toBeInTheDocument());
     expect(screen.getByLabelText("Maximum extra travel time")).toHaveValue("9");
-    const chosen = within(chips).getByRole("radio", { name: /29 min/ });
-    expect(chosen).toHaveAttribute("aria-checked", "true");
+    // Selection settles after the recommendation recomputes for the new allowance.
+    const chosen = await within(chips).findByRole("radio", { name: /29 min/ });
+    await waitFor(() => expect(chosen).toHaveAttribute("aria-checked", "true"), { timeout: 5000 });
     // Within the new +9 allowance the normal policy recommends it (29% ≥ 15%).
     expect(chosen).toHaveTextContent(/Recommended/i);
     expect(mocks.computeRoutes).toHaveBeenCalledTimes(1);
