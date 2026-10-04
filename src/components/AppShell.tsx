@@ -623,7 +623,6 @@ export function AppShell() {
 
   const canShowLayer = !!grid && grid.meta.modes.includes(rec ? searchMode : form.mode);
 
-  const legendVisible = canShowLayer && layer !== "off" && heatmapStatus === "ready";
   const layerControls = (
     <>
       <div
@@ -718,7 +717,9 @@ export function AppShell() {
           )}
         </div>
       )}
-      {canShowLayer && layer !== "off" && heatmapStatus === "ready" && <ExposureLegend />}
+      {!isMobile && canShowLayer && layer !== "off" && heatmapStatus === "ready" && (
+        <ExposureLegend />
+      )}
     </>
   );
 
@@ -828,32 +829,8 @@ export function AppShell() {
       )}
       {isMobile && !navTrip && !picking && (
         <div className="absolute inset-x-3 top-3 z-20 flex flex-col gap-2">
-          <div className="glass rounded-2xl border px-3 py-2 shadow-soft">
-            <BrandHeader
-              onHelp={() => setMethOpen(true)}
-              helpLabel={t("sourceDetails")}
-              actions={
-                <button
-                  type="button"
-                  onClick={() => setLayersOpen((v) => !v)}
-                  aria-expanded={layersOpen}
-                  aria-label={t("layerToggle")}
-                  title={t("layerToggle")}
-                  className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border shadow-soft ${layersOpen || (canShowLayer && layer !== "off") ? "border-primary bg-primary text-primary-foreground" : "bg-card text-deep hover:bg-secondary"}`}
-                >
-                  <svg
-                    viewBox="0 0 24 24"
-                    className="h-4 w-4"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    aria-hidden
-                  >
-                    <path d="m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5" />
-                  </svg>
-                </button>
-              }
-            />
+          <div className="glass w-fit self-start rounded-full border p-1 shadow-soft">
+            <BrandHeader compact onHelp={() => setMethOpen(true)} helpLabel={t("sourceDetails")} />
           </div>
           {rec && step === null ? (
             <>
@@ -874,13 +851,14 @@ export function AppShell() {
                 mapsReady={mapState === "ready"}
                 onPick={startPick}
               />
-              <TravelModeToggle value={form.mode} onChange={(mode) => setForm({ ...form, mode })} />
+              <div className="w-28 self-start">
+                <TravelModeToggle
+                  value={form.mode}
+                  onChange={(mode) => setForm({ ...form, mode })}
+                  compact
+                />
+              </div>
             </form>
-          )}
-          {legendVisible && !layersOpen && (
-            <div className="flex justify-end">
-              <ExposureLegend />
-            </div>
           )}
         </div>
       )}

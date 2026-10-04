@@ -1,3 +1,4 @@
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ShieldCheck, Clock3 } from "lucide-react";
 import { planningCopy } from "@/i18n/planning";
 import { useI18n } from "@/i18n";
@@ -34,20 +35,26 @@ export function TripCard({
   onPick,
 }: Pick<Props, "form" | "setForm" | "mapsReady" | "onPick">) {
   const { t } = useI18n();
+  const mobile = useIsMobile();
   return (
-    <section className="rounded-3xl border bg-card p-4 shadow-soft" aria-label={t("planRoute")}>
-      <h2 className="mb-3 font-display text-xl font-extrabold text-deep">{t("planRoute")}</h2>
+    <section
+      className="rounded-2xl border bg-card p-2 shadow-soft md:rounded-3xl md:p-4"
+      aria-label={t("planRoute")}
+    >
+      <h2 className="sr-only font-display text-xl font-extrabold text-deep md:not-sr-only md:mb-3">
+        {t("planRoute")}
+      </h2>
       <div className="flex items-center gap-2">
-        <div className="relative min-w-0 flex-1 rounded-2xl border bg-background p-1.5">
+        <div className="relative min-w-0 flex-1 rounded-xl border border-transparent bg-transparent p-0 md:rounded-2xl md:border-border md:bg-background md:p-1.5">
           <span
             aria-hidden
-            className="pointer-events-none absolute left-[22px] top-[36px] h-[44px] border-l-2 border-dotted border-primary/50"
+            className="pointer-events-none absolute left-[22px] top-[30px] h-[30px] md:top-[36px] md:h-[44px] border-l-2 border-dotted border-primary/50"
           />
           <LocationSearch
             id="origin"
             kind="origin"
             variant="inline"
-            showPickLabel
+            showPickLabel={!mobile}
             value={form.origin}
             onChange={(origin) => setForm({ ...form, origin })}
             mapsReady={mapsReady}
@@ -59,7 +66,7 @@ export function TripCard({
             id="destination"
             kind="destination"
             variant="inline"
-            showPickLabel
+            showPickLabel={!mobile}
             value={form.destination}
             onChange={(destination) => setForm({ ...form, destination })}
             mapsReady={mapsReady}
@@ -106,7 +113,7 @@ export function SearchPage({
   const panel = layout === "panel";
   return (
     <form
-      className="space-y-3"
+      className="space-y-1.5 md:space-y-3"
       onSubmit={(e) => {
         e.preventDefault();
         onSubmit();
@@ -144,15 +151,15 @@ export function SearchPage({
           {t("findRoutes")} <span aria-hidden>→</span>
         </Button>
       </div>
-      <div className="relative pt-1">
+      <div className="relative md:pt-1">
         <img
           src="/ara-sunny-mound.png"
           alt=""
           aria-hidden
           draggable={false}
-          className="pointer-events-none absolute -right-2 -top-16 z-10 h-24 w-24 object-contain"
+          className="pointer-events-none absolute -right-2 -top-16 z-10 hidden h-24 w-24 object-contain md:block"
         />
-        <div className="relative flex items-start gap-3 overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success-soft via-success-soft to-card px-4 py-4 shadow-soft">
+        <div className="relative hidden items-start gap-3 overflow-hidden rounded-2xl border border-success/20 bg-gradient-to-br from-success-soft via-success-soft to-card px-4 py-4 shadow-soft md:flex">
           <div aria-hidden className="absolute -bottom-5 -left-3 flex items-end gap-1 opacity-30">
             <span className="h-10 w-7 -rotate-45 rounded-full bg-success" />
             <span className="h-8 w-6 rotate-12 rounded-full bg-success" />
@@ -169,7 +176,7 @@ export function SearchPage({
         <button
           type="button"
           onClick={onDemo}
-          className="mx-auto mt-1 block min-h-11 rounded-lg px-3 text-xs font-medium text-text-secondary underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
+          className="mx-auto block min-h-9 rounded-lg px-1 text-xs font-medium text-text-secondary underline underline-offset-4 hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary md:mt-1 md:min-h-11 md:px-3"
         >
           {t("demoTrip")}
         </button>

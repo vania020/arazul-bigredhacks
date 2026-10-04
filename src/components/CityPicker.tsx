@@ -54,9 +54,22 @@ export function CityPicker({
         <button
           type="button"
           onClick={onDetails}
+          aria-label={t("sourceDetails")}
+          title={t("sourceDetails")}
           className="min-h-11 shrink-0 rounded-full px-3 text-xs font-semibold text-primary hover:bg-secondary"
         >
-          {t("sourceDetails")}
+          <svg
+            viewBox="0 0 24 24"
+            className="h-5 w-5 md:hidden"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            aria-hidden
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v6M12 7h.01" />
+          </svg>
+          <span className="hidden md:inline">{t("sourceDetails")}</span>
         </button>
       </div>
       {notes.map((n) => (

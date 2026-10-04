@@ -273,7 +273,7 @@ export function LocationSearch({
             }
             if (e.key === "Escape") setOpen(false);
           }}
-          className={`${showPickLabel ? "h-10" : "h-12"} min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground ${inline ? "text-[15px] font-medium text-foreground" : "text-[15px]"}`}
+          className={`${showPickLabel ? "h-10" : "h-10 md:h-12"} min-w-0 flex-1 bg-transparent outline-none placeholder:text-muted-foreground ${inline ? "text-base md:text-[15px] font-medium text-foreground" : "text-[15px]"}`}
         />
         {inline && !showPickLabel && pickButton}
         {allowCurrent && (

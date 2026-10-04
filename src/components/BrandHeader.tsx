@@ -70,7 +70,9 @@ export function BrandHeader({
   helpLabel,
   tagline,
   actions,
+  compact = false,
 }: {
+  compact?: boolean;
   actions?: React.ReactNode;
   onHelp?: () => void;
   helpLabel?: string;
@@ -81,8 +83,14 @@ export function BrandHeader({
   return (
     <header>
       <div className="flex items-center gap-2">
-        <ArazulLogo className="h-8 w-8 shrink-0 drop-shadow-sm min-[380px]:h-9 min-[380px]:w-9" />
-        <div className="flex min-w-0 flex-1 items-baseline gap-3">
+        <ArazulLogo
+          className={
+            compact
+              ? "h-8 w-8 shrink-0"
+              : "h-8 w-8 shrink-0 drop-shadow-sm min-[380px]:h-9 min-[380px]:w-9"
+          }
+        />
+        <div className={compact ? "sr-only" : "flex min-w-0 flex-1 items-baseline gap-3"}>
           <p className="font-display text-base font-extrabold leading-none tracking-[0.14em] text-deep min-[380px]:text-lg min-[380px]:tracking-[0.18em]">
             ARAZUL
           </p>
@@ -98,6 +106,7 @@ export function BrandHeader({
           {(["en", "pt", "es"] as Lang[]).map((l) => (
             <button
               key={l}
+              type="button"
               onClick={() => setLang(l)}
               aria-pressed={lang === l}
               aria-label={languageNames[l]}
@@ -109,7 +118,7 @@ export function BrandHeader({
           ))}
         </div>
         {actions}
-        {onHelp && (
+        {onHelp && !compact && (
           <button
             type="button"
             onClick={onHelp}

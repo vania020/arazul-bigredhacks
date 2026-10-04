@@ -36,7 +36,10 @@ function grid(cells: RiskGrid["cells"] = { "0_0": cell() }): RiskGrid {
   };
 }
 
-function mapFixture(initialBounds: Bounds = [-0.001, -0.001, 0.011, 0.011]) {
+function mapFixture(
+  initialBounds: Bounds = [-0.001, -0.001, 0.011, 0.011],
+  projectionScale = 100000,
+) {
   let bounds = initialBounds;
   let zoom = 14;
   const pane = document.createElement("div");
@@ -73,7 +76,7 @@ function mapFixture(initialBounds: Bounds = [-0.001, -0.001, 0.011, 0.011]) {
   }
   const projection = {
     fromLatLngToDivPixel(point: LatLng) {
-      return { x: point.lng() * 100000, y: -point.lat() * 100000 };
+      return { x: point.lng() * projectionScale, y: -point.lat() * projectionScale };
     },
   };
   const detach = vi.fn();
@@ -167,6 +170,22 @@ afterEach(() => {
 });
 
 describe("exposure heatmap rendering", () => {
+  it("preserves subpixel hotspots without stacking opacity or painting zero cells", () => {
+    const f = mapFixture(undefined, 100);
+    f.setZoom(5);
+    const view = mount(f, {
+      grid: grid({
+        "0_0": cell([2, 2, 2, 2]),
+        "0_1": cell([20, 20, 20, 20]),
+        "0_2": cell([0, 0, 0, 0]),
+      }),
+    });
+    expect(f.paints).toHaveLength(1);
+    expect(f.paints[0]).toMatchObject({ color: colors[4], w: 1, h: 1 });
+    expect(f.paints[0]!.alpha).toBeLessThanOrEqual(0.45);
+    expect(view.props.onStatus).toHaveBeenLastCalledWith("ready");
+  });
+
   it("keeps low-value cells visible at the minimum supported zoom", () => {
     const f = mapFixture();
     f.setZoom(13);

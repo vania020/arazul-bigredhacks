@@ -31,13 +31,15 @@ export function TravelModeToggle({
             key={m}
             role="radio"
             aria-checked={on}
+            aria-label={t(m)}
+            title={t(m)}
             onClick={() => onChange(m)}
             className={`flex ${compact ? "h-9" : "h-11"} items-center justify-center gap-2 rounded-full border text-sm font-semibold transition-all ${on ? "border-primary bg-secondary text-primary ring-1 ring-primary shadow-soft" : "bg-card text-text-secondary hover:border-sky hover:text-foreground"}`}
           >
             <svg viewBox="0 0 24 24" className="h-5 w-5 fill-current" aria-hidden>
               {modeIcons[m]}
             </svg>
-            {t(m)}
+            <span className="hidden md:inline">{t(m)}</span>
           </button>
         );
       })}

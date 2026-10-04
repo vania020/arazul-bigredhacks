@@ -104,13 +104,16 @@ export function ExposureLayer({
         const c0 = Math.max(0, Math.floor((sw.lng() - originLon) / dLng)),
           c1 = Math.min(grid.meta.cols - 1, Math.floor((ne.lng() - originLon) / dLng));
         let painted = 0;
+        // At wide zooms, preserve the strongest activity in each screen pixel.
+        // Aggregate before drawing so neighbouring cells do not stack their opacity.
+        const pixels = new Map<string, { x: number; y: number; index: number }>();
         for (let r = r0; r <= r1; r++) {
           for (let c = c0; c <= c1; c++) {
             const key = `${r}_${c}`;
             const cell = grid.cells[key];
             if (!cell) continue;
             const v = blendedValue(cell, mode, hour) * (grid.meta.displayScale ?? 1);
-            if (v < C.layer.minValue) continue;
+            if (!Number.isFinite(v) || v < C.layer.minValue || v <= 0) continue;
             const nearRoute = corridor.has(key);
             if (scope === "route" && !nearRoute) continue;
             const south = Math.max(originLat + r * dLat, bounds[1]!),
@@ -127,16 +130,33 @@ export function ExposureLayer({
               C.layer.minOpacity +
               ((maxOpacity - C.layer.minOpacity) * index) / (EXPOSURE_SCALE.length - 1);
             ctx.fillStyle = colors[index] ?? colors[0]!;
-            // Shared pixel boundaries avoid darker seams from overlapping adjacent cells.
-            const x = Math.round(p1.x - tl.x),
-              y = Math.round(p1.y - tl.y);
-            const width = Math.round(p2.x - tl.x) - x,
-              height = Math.round(p2.y - tl.y) - y;
+            if ((p2.x - p1.x) * dpr < 1 || (p2.y - p1.y) * dpr < 1) {
+              const x = Math.floor(((p1.x + p2.x) / 2 - tl.x) * dpr);
+              const y = Math.floor(((p1.y + p2.y) / 2 - tl.y) * dpr);
+              const pixelKey = `${x}_${y}`;
+              const previous = pixels.get(pixelKey);
+              if (!previous || index > previous.index) pixels.set(pixelKey, { x, y, index });
+              continue;
+            }
+            // Round at device resolution, preserving detail on high-density phones.
+            const x = Math.round((p1.x - tl.x) * dpr),
+              y = Math.round((p1.y - tl.y) * dpr);
+            const width = Math.round((p2.x - tl.x) * dpr) - x,
+              height = Math.round((p2.y - tl.y) * dpr) - y;
             if (width > 0 && height > 0) {
-              ctx.fillRect(x, y, width, height);
+              ctx.fillRect(x / dpr, y / dpr, width / dpr, height / dpr);
               painted++;
             }
           }
+        }
+        const maxOpacity = scope === "route" ? C.layer.routeOpacity : C.layer.opacity;
+        for (const { x, y, index } of pixels.values()) {
+          ctx.globalAlpha =
+            C.layer.minOpacity +
+            ((maxOpacity - C.layer.minOpacity) * index) / (EXPOSURE_SCALE.length - 1);
+          ctx.fillStyle = colors[index] ?? colors[0]!;
+          ctx.fillRect(x / dpr, y / dpr, 1 / dpr, 1 / dpr);
+          painted++;
         }
         onStatus(painted ? "ready" : "empty");
       }
